@@ -6,10 +6,15 @@ CFLAGS = -Wall -Wextra -std=c99 -g
 # Flags for building Position-Independent Code for shared libraries
 SHARED_CFLAGS = $(CFLAGS) -fPIC
 
-# Detect the operating system
-OS = $(shell uname)
+# --- Installation Paths ---
+# By default, install to /usr/local.
+# Override with `make install PREFIX=$HOME/.local` for a user-local install.
+PREFIX ?= /usr/local
+INSTALL_LIB_DIR = $(PREFIX)/lib
+INSTALL_INCLUDE_DIR = $(PREFIX)/include
 
-# Set library extensions based on OS
+# --- System Detection ---
+OS = $(shell uname)
 ifeq ($(OS), Darwin)
 	SHARED_LIB_EXT = .dylib
 else
@@ -27,7 +32,7 @@ STATIC_LIB = libtrampoline.a
 
 # --- Primary Targets ---
 
-# The default target builds a universal binary on macOS or a native binary on Linux.
+# The default target builds the main executable.
 all:
 ifeq ($(OS), Darwin)
 	$(MAKE) universal
@@ -39,93 +44,90 @@ endif
 help:
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  all                  Builds the default executable for the platform (universal on macOS)."
-	@echo "  universal            (macOS only) Builds a universal executable (x86_64 and arm64)."
-	@echo "  shared-lib           Builds a shared library (.dylib or .so)."
-	@echo "  static-lib           Builds a static library (.a)."
-	@echo "  clean                Removes all build artifacts."
+	@echo "Main Targets:"
+	@echo "  all                  Builds the default executable for the platform."
 	@echo "  help                 Shows this help message."
 	@echo ""
+	@echo "Library Targets:"
+	@echo "  shared-lib           Builds a shared library (.dylib or .so)."
+	@echo "  static-lib           Builds a static library (.a)."
+	@echo ""
+	@echo "Installation Targets:"
+	@echo "  install              Install headers and libraries. Use 'sudo' for system paths."
+	@echo "                       (e.g., 'make install PREFIX=$$HOME/.local' for user install)"
+	@echo "  uninstall            Remove installed headers and libraries."
+	@echo ""
+	@echo "macOS Specific:"
+	@echo "  universal            Builds a universal executable (x86_64 and arm64)."
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  clean                Removes all build artifacts."
+
+# --- Installation Targets ---
+
+install: shared-lib static-lib
+	@echo "Installing to $(PREFIX)..."
+	mkdir -p $(INSTALL_LIB_DIR)
+	mkdir -p $(INSTALL_INCLUDE_DIR)
+	install -m 644 trampoline.h $(INSTALL_INCLUDE_DIR)
+	install -m 644 $(SHARED_LIB) $(INSTALL_LIB_DIR)
+	install -m 644 $(STATIC_LIB) $(INSTALL_LIB_DIR)
+	@echo "Installation complete."
+
+uninstall:
+	@echo "Uninstalling from $(PREFIX)..."
+	rm -f $(INSTALL_INCLUDE_DIR)/trampoline.h
+	rm -f $(INSTALL_LIB_DIR)/$(SHARED_LIB)
+	rm -f $(INSTALL_LIB_DIR)/$(STATIC_LIB)
+	@echo "Uninstallation complete."
+
 
 # --- Library Targets ---
-
-# Generic target to build the shared library for the current platform.
 shared-lib: $(SHARED_LIB)
-
-# Generic target to build the static library for the current platform.
 static-lib: $(STATIC_LIB)
-
-# --- Platform-Specific Library Implementations ---
 
 # macOS (Darwin) specific library builds
 ifeq ($(OS), Darwin)
-
-# Create a universal shared library
 $(SHARED_LIB): libtrampoline.x86_64.dylib libtrampoline.arm64.dylib
 	@echo "Creating universal shared library..."
 	lipo -create -output $@ $^
-
-# Create a universal static library
 $(STATIC_LIB): libtrampoline.x86_64.a libtrampoline.arm64.a
 	@echo "Creating universal static library..."
 	lipo -create -output $@ $^
-
-# Rule to build arch-specific shared libraries
 libtrampoline.x86_64.dylib: trampoline.x86_64.shared.o
 	$(CC) --target=x86_64-apple-darwin -dynamiclib -o $@ $^
 libtrampoline.arm64.dylib: trampoline.arm64.shared.o
 	$(CC) --target=arm64-apple-darwin -dynamiclib -o $@ $^
-
-# Rule to build arch-specific static libraries
 libtrampoline.x86_64.a: trampoline.x86_64.o
 	ar rcs $@ $^
 libtrampoline.arm64.a: trampoline.arm64.o
 	ar rcs $@ $^
-
 # Linux specific library builds
 else
-
-# Create a native shared library (.so)
 $(SHARED_LIB): $(SHARED_LIB_SRC:.c=.shared.o)
 	@echo "Building Linux shared library..."
 	$(CC) $(SHARED_CFLAGS) -shared -o $@ $^
-
-# Create a native static library (.a)
 $(STATIC_LIB): $(STATIC_LIB_SRC:.c=.o)
 	@echo "Building Linux static library..."
 	ar rcs $@ $^
-
 endif
 
 # --- Executable Targets ---
-
 universal: trampoline_demo_x86_64 trampoline_demo_arm64
 	@echo "Creating universal executable..."
 	lipo -create -output trampoline_demo_universal $^
-	@echo "Universal build complete: trampoline_demo_universal"
-
 trampoline_demo_native: $(SRCS:.c=.o)
 	$(CC) $(CFLAGS) -o $@ $^
-
 trampoline_demo_x86_64: main.x86_64.o trampoline.x86_64.o
 	$(CC) --target=x86_64-apple-darwin -o $@ $^
-
 trampoline_demo_arm64: main.arm64.o trampoline.arm64.o
 	$(CC) --target=arm64-apple-darwin -o $@ $^
 
-
 # --- Object File Rules ---
-
-# Native object files
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-
-# Position-independent object files (for shared libs)
 %.shared.o: %.c
 	$(CC) $(SHARED_CFLAGS) -c -o $@ $<
-
-# Architecture-specific object files (for macOS universal builds)
 %.x86_64.o: %.c
 	$(CC) $(CFLAGS) --target=x86_64-apple-darwin -c -o $@ $<
 %.arm64.o: %.c
@@ -135,10 +137,9 @@ trampoline_demo_arm64: main.arm64.o trampoline.arm64.o
 %.arm64.shared.o: %.c
 	$(CC) $(SHARED_CFLAGS) --target=arm64-apple-darwin -c -o $@ $<
 
-
 # --- Utility Targets ---
 clean:
 	@echo "Cleaning up build artifacts..."
 	rm -f trampoline_demo_* *.o *.a *.so *.dylib
 
-.PHONY: all clean universal shared-lib static-lib help
+.PHONY: all clean universal shared-lib static-lib help install uninstall
