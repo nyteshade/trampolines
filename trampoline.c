@@ -18,6 +18,12 @@
         #include "trampoline_x86_win.c"
     #endif
 
+#elif defined(__ppc64__) || defined(__POWERPC64__)
+  #include "trampoline_ppc64.c"
+
+#elif defined(__ppc__) || defined(__POWERPC__)
+  #include "trampoline_ppc.c"
+
 // Check for POSIX-like systems (macOS, Linux, etc.)
 #elif defined(__unix__) || defined(__APPLE__)
     #if defined(__aarch64__) // Apple Silicon, Linux ARM64
