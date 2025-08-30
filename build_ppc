@@ -1,0 +1,52 @@
+#!/usr/bin/env sh
+
+printf "Compiling PowerPC (32-bit)..."
+gcc -arch ppc -O2 -c trampoline_ppc.c -o trampoline_ppc.o
+
+if [[ $? -eq 0 ]]; then
+  printf "\x1b[32mdone\x1b[39m\n"
+else
+  printf "\x1b[31mfailed\x1b[39m\n"
+fi
+
+printf "Compiling PowerPC (64-bit)..."
+gcc -arch ppc64 -O2 -mmacosx-version-min=10.5 \
+  -c trampoline_ppc64.c \
+  -o trampoline_ppc64.o
+
+if [[ $? -eq 0 ]]; then
+  printf "\x1b[32mdone\x1b[39m\n"
+else
+  printf "\x1b[31mfailed\x1b[39m\n"
+fi
+
+printf "Building ar libs..."
+result=0
+ar rcs libtrampoline.ppc.a trampoline_ppc.o
+result=$(( $result + $? ))
+
+ranlib libtrampoline.ppc.a
+result=$(( $result + $? ))
+
+ar rcs libtrampoline.ppc64.a trampoline_ppc64.o
+result=$(( $result + $? ))
+
+ranlib libtrampoline.ppc64.a
+result=$(( $result + $? ))
+
+if [[ $result -eq 0 ]]; then
+  printf "\x1b[32mdone\x1b[39m\n"
+else
+  printf "\x1b[31mfailed\x1b[39m\n"
+fi
+
+printf "Building fat universal libtrampoline..."
+lipo -create -output libtrampoline.a libtrampoline.ppc.a libtrampoline.ppc64.a
+
+if [[ $? -eq 0 ]]; then
+  printf "\x1b[32mdone\x1b[39m\n"
+else
+  printf "\x1b[31mfailed\x1b[39m\n"
+fi
+
+lipo -info libtrampoline.a

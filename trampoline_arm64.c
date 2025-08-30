@@ -1,37 +1,83 @@
-// Target: ARM64 (aarch64) | ABI: AAPCS64 (Apple, Linux) | Arg1: x0
+// Target: ARM64 (AAPCS64)
+// Shift x0..x7 right by 1 as needed, x0=context.
+// If public_argc >= 8, keep 16B alignment and push old x7 as new first stack arg.
+// Use blr + ret so we can restore sp when we pushed.
+
+#include "trampoline.h"
 #include <sys/mman.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
-#define TRAMPOLINE_SIZE 40
+#define EMIT32(x)  (*code++ = (uint32_t)(x))
+static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
+    EMIT32(0xD2800000 | ((v & 0xFFFF) << 5)  | xd);          // movz
+    EMIT32(0xF2A00000 | (((v>>16)&0xFFFF) << 5) | xd);       // movk #16
+    EMIT32(0xF2C00000 | (((v>>32)&0xFFFF) << 5) | xd);       // movk #32
+    EMIT32(0xF2E00000 | (((v>>48)&0xFFFF) << 5) | xd);       // movk #48
+    return b;
+  }
+  static inline uint32_t mov_reg(uint8_t xd, uint8_t xm) {   // mov xd,xm
+    return 0xAA0003E0 | (xm<<16) | xd;
+  }
+  static inline uint32_t add_imm_sp(uint8_t xd, uint32_t imm12) { // add xd,sp,#imm
+    return 0x91000000 | (imm12<<10) | (31<<5) | xd; // 31 encodes SP
+  }
+  static inline uint32_t sub_imm_sp(uint32_t imm12) { // sub sp,sp,#imm
+    return 0xD1000000 | (imm12<<10) | (31<<5) | 31;
+  }
 
-static uint32_t* aarch64_emit_load_imm64(uint32_t* buffer, uint8_t reg, uint64_t value) {
-    buffer[0] = (0xd2800000) | ((uint32_t)(value & 0xFFFF) << 5) | reg;
-    buffer[1] = (0xf2a00000) | ((uint32_t)((value >> 16) & 0xFFFF) << 5) | reg;
-    buffer[2] = (0xf2c00000) | ((uint32_t)((value >> 32) & 0xFFFF) << 5) | reg;
-    buffer[3] = (0xf2e00000) | ((uint32_t)((value >> 48) & 0xFFFF) << 5) | reg;
-    return buffer + 4;
-}
+  enum { SIZE = 128 };
 
-void *trampoline_create(void *target_func, void *context) {
-    void *mem = mmap(NULL, TRAMPOLINE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void *trampoline_create(void *target_func, void *context, size_t public_argc) {
+    void *mem = mmap(NULL, SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     if (mem == MAP_FAILED) return NULL;
 
-    uint32_t *code = (uint32_t *)mem;
-    code = aarch64_emit_load_imm64(code, 16, (uint64_t)context);
-    code = aarch64_emit_load_imm64(code, 17, (uint64_t)target_func);
-    *code++ = 0xaa1003e0; // mov x0, x16
-    *code++ = 0xd61f0220; // br x17
+    uint32_t *code = (uint32_t*)mem;
 
-    if (mprotect(mem, TRAMPOLINE_SIZE, PROT_READ | PROT_EXEC) == -1) {
-        munmap(mem, TRAMPOLINE_SIZE);
-        return NULL;
+    // Load context->x16, target->x17
+    code = mov_imm64(code, 16, (uint64_t)context);
+    code = mov_imm64(code, 17, (uint64_t)target_func);
+
+    // Save old x7 in x9 (harmless if argc<7)
+    EMIT32(mov_reg(9, 7));
+
+    // Shift regs: for i=min(7,argc)..1: mov x{i+1}, x{i}
+    size_t maxr = public_argc < 7 ? public_argc : 7;
+    for (size_t i = maxr; i >= 1; i--) {
+      EMIT32(mov_reg((uint8_t)(i+1), (uint8_t)i));
+      if (i == 1) break;
     }
-    __builtin___clear_cache((char*)mem, (char*)code);
-    return mem;
-}
 
-void trampoline_free(void *trampoline) {
-    if (trampoline) munmap(trampoline, TRAMPOLINE_SIZE);
-}
+    // x0 = context
+    EMIT32(mov_reg(0, 16));
+
+    if (public_argc >= 8) {
+      // Keep 16B alignment, push old x7 into [sp], pad 8 bytes
+      // sub sp, sp, #16
+      EMIT32(sub_imm_sp(16/16)); // imm12 is scaled by 16? (AArch64 immediate for add/sub uses 12-bit unscaled)
+      // str x9, [sp]
+      EMIT32(0xF90003E9); // STR X9, [SP,#0]
+      // str xzr, [sp,#8]   (pad)
+      EMIT32(0xF90007FF); // STR XZR,[SP,#8]
+      // blr x17
+      EMIT32(0xD63F0220);
+      // add sp, sp, #16 ; ret
+      EMIT32(add_imm_sp(31, 16/16)); // ADD SP,SP,#16 (encoded as add xzr? we used helper only for xd, so we can hand-emit)
+      // ret
+      EMIT32(0xD65F03C0);
+    } else {
+      // mov x0 done; just branch to target and return to caller.
+      // br x17
+      EMIT32(0xD61F0220);
+    }
+
+    __builtin___clear_cache((char*)mem, (char*)mem + SIZE);
+    mprotect(mem, SIZE, PROT_READ|PROT_EXEC);
+    return mem;
+  }
+
+  void trampoline_free(void *trampoline) {
+    if (trampoline) munmap(trampoline, SIZE);
+  }
+  

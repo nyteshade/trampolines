@@ -2,10 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <exec/types.h>
 #include <trampoline.h>
+#include <trampoline_m68k_debug.h>
+
+/* gcc -o trampoline main.c trampoline_m68k.c -Iram: -noixemul */
 
 typedef struct AWindow {
-  char * title;
+  STRPTR title;
 
   const char *(*getTitle)();
   void        (*setTitle)(const char *newName);
@@ -76,13 +80,18 @@ AWindow* AWindowCreate(const char *title) {
   printf("   ...bytes allocated at %p\n", context);
 
   if (context) {
-    context->getTitle = trampoline_create(_awin_getName, context, 0);
-    context->setTitle = trampoline_create(_awin_setName, context, 1);
-    context->free     = trampoline_create(_awin_free, context, 0);
+    context->getTitle = trampoline_create(_awin_getName, context);
+    context->setTitle = trampoline_create(_awin_setName, context);
+    context->free     = trampoline_create(_awin_free, context);
 
     printf("   ...trampoline getTitle is %p\n", context->getTitle);
     printf("   ...trampoline setTitle is %p\n", context->setTitle);
     printf("   ...trampoline free is %p\n", context->free);
+
+    printf("   ...dumping setTitle trampoline\n\n");
+    dump_tramp("setTitle", context->setTitle, 32);
+    printf("\n");
+
     printf("   ...setting title to %s\n", title);
 
     context->setTitle(title);

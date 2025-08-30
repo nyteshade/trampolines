@@ -1,50 +1,29 @@
-// Target: x86 (i386)
-// ABI: cdecl (Windows)
-// First argument passed on the stack
-
+// Target: x86 (i386) Windows cdecl
 #include "trampoline.h"
 #include <windows.h>
+#include <stdint.h>
+#include <string.h>
 
-static const size_t TRAMPOLINE_SIZE = 12;
+static const size_t SZ = 1+5+1+5;
 
-void *trampoline_create(void *target_func, void *context) {
-    void *mem = VirtualAlloc(NULL, TRAMPOLINE_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (mem == NULL) return NULL;
+void *trampoline_create(void *target_func, void *context, size_t public_argc) {
+    (void)public_argc;
+    unsigned char *mem = (unsigned char*)VirtualAlloc(NULL, SZ, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (!mem) return NULL;
+    unsigned char *c = mem;
 
-    unsigned char *code = (unsigned char *)mem;
+    *c++ = 0x59;                 // pop ecx
+    *c++ = 0x68; memcpy(c,&context,4); c+=4; // push imm32
+    *c++ = 0x51;                 // push ecx
+    *c++ = 0xE9; INT32 rel = (INT32)((INT_PTR)target_func - ((INT_PTR)c + 4));
+    memcpy(c, &rel, 4); c+=4;
 
-    // mov eax, <32-bit context>
-    *code++ = 0xb8;
-    memcpy(code, &context, sizeof(UINT32));
-    code += sizeof(UINT32);
-
-    // push eax
-    *code++ = 0x50;
-
-    // call <relative_offset_to_function>
-    *code++ = 0xe8;
-    INT32 offset = (INT_PTR)target_func - ((INT_PTR)code + 4);
-    memcpy(code, &offset, sizeof(INT32));
-    code += sizeof(INT32);
-
-    // add esp, 4
-    *code++ = 0x83; *code++ = 0xc4; *code++ = 0x04;
-
-    // ret
-    *code++ = 0xc3;
-
-    DWORD old_protect;
-    if (!VirtualProtect(mem, TRAMPOLINE_SIZE, PAGE_EXECUTE_READ, &old_protect)) {
-        VirtualFree(mem, 0, MEM_RELEASE);
-        return NULL;
-    }
-
-    FlushInstructionCache(GetCurrentProcess(), mem, TRAMPOLINE_SIZE);
+    DWORD old; VirtualProtect(mem, SZ, PAGE_EXECUTE_READ, &old);
+    FlushInstructionCache(GetCurrentProcess(), mem, SZ);
     return mem;
-}
+  }
 
-void trampoline_free(void *trampoline) {
-    if (trampoline) {
-        VirtualFree(trampoline, 0, MEM_RELEASE);
-    }
-}
+  void trampoline_free(void *trampoline) {
+    if (trampoline) VirtualFree(trampoline, 0, MEM_RELEASE);
+  }
+  

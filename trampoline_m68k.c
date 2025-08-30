@@ -1,87 +1,128 @@
 /*
- * Target: Motorola 68000 (m68k)
- * Platform: Commodore Amiga (AmigaOS 2.x/3.x)
- * Compiler: GCC 2.95.3
- * ABI: Arguments passed on the stack (right to left).
+ * Amiga m68k (AmigaOS 2.x/3.x), GCC 2.95.3, cdecl stack-only ABI.
+ * Robust variant: saves the caller's return in a scratch slot placed
+ * *after* the instruction stream to avoid overwriting code (including RTS).
+ *
+ * Code stream is 32 bytes. We allocate 36 and put scratch at code+32.
+ *
+ * Emitted instructions (32 bytes total):
+ *   205F              movea.l (sp)+,a0                 ; A0 = caller_ret
+ *   23C8 <SS>         move.l  a0,(abs).l scratch       ; save caller_ret
+ *   4879 <CC>         pea     (abs).l context          ; push context
+ *   227C <TT>         movea.l #<target>,a1             ; A1 = target
+ *   4E91              jsr     (a1)                     ; call target(self,...)
+ *   588F              addq.l  #4,sp                    ; drop context
+ *   2F39 <SS>         move.l  (abs).l scratch,-(sp)    ; restore caller_ret
+ *   4E75              rts                              ; return to caller
+ *
+ * [SS] = 32-bit absolute address of scratch (code+32)
+ * [CC] = 32-bit absolute address of context
+ * [TT] = 32-bit absolute address of target
  */
+
+#define TRAMPOLINE_M68K_VER 0x00010002 /* 1.2 */
 
 #include "trampoline.h"
-#include <proto/exec.h> /* AmigaOS specific includes */
-#include <dos/dos.h>  /* For error codes */
 
-/*
- * We need access to the Exec library base to call its functions.
- * This is a global pointer that is set up by the C startup code.
- */
-extern struct ExecBase *SysBase;
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <proto/exec.h>
+#ifdef __has_include
+# if __has_include(<exec/execbase.h>)
+#  include <exec/execbase.h>
+# endif
+#endif
 
-/*
- * The size of our dynamically generated function in bytes.
- * This is calculated based on the 68k instructions we will write.
- */
-#define TRAMPOLINE_SIZE 20
+#ifndef MEMF_PUBLIC
+#define MEMF_PUBLIC 0
+#endif
+#ifndef CACRF_ClearI
+#define CACRF_ClearI (1L << 1)
+#endif
 
-void *trampoline_create(void *target_func, void *context) {
-  /*
-   * On AmigaOS, we allocate memory using AllocMem from exec.library.
-   * MEMF_PUBLIC: Memory that is visible to all tasks.
-   * MEMF_CLEAR:  Initialize the memory to all zeros.
-   * On classic Amigas, there is no hardware distinction between executable
-   * and writable memory, so we don't need special permissions like on modern systems.
-   */
-  unsigned short *code = AllocMem(TRAMPOLINE_SIZE, MEMF_PUBLIC | MEMF_CLEAR);
-  if (!code) {
-    return NULL;
-  }
+/* 32 bytes of code + 4 bytes of data (scratch) */
+#define M68K_CODE_SIZE      32
+#define M68K_TOTAL_SIZE     36
 
-  /*
-   * Now we write the 68000 machine code directly into the allocated memory.
-   * The 68k is a "big-endian" processor, and instructions are 16-bits (a short).
-   * We use specific hexadecimal codes that correspond to assembly instructions.
-   */
+typedef struct be_ctx_s {
+  UBYTE *p;
+  UBYTE *base;
+  ULONG cap;
+} be_ctx;
 
-  /* Instruction 1: move.l #<context_addr>, a0 */
-  /* Loads the 32-bit address of our 'context' into address register A0. */
-  code[0] = 0x207c; /* Opcode for movea.l immediate */
-  *(void **)(code + 1) = context; /* Write the 32-bit context address */
-
-  /* Instruction 2: move.l #<target_func_addr>, a1 */
-  /* Loads the 32-bit address of our target function into address register A1. */
-  code[3] = 0x227c; /* Opcode for movea.l immediate (to A1) */
-  *(void **)(code + 4) = target_func; /* Write the 32-bit function address */
-
-  /* Instruction 3: move.l a0, -(sp) */
-  /* Pushes the context pointer (from A0) onto the stack. This becomes the first argument. */
-  code[6] = 0x2f08; /* Opcode for move.l a0, -(sp) */
-
-  /* Instruction 4: jsr (a1) */
-  /* Jumps to the subroutine located at the address in register A1. */
-  code[7] = 0x4e91; /* Opcode for jsr (a1) */
-
-  /* Instruction 5: addq.l #4, sp */
-  /* Cleans up the stack by removing the argument we pushed. */
-  code[8] = 0x588f; /* Opcode for addq.l #4, sp */
-
-  /* Instruction 6: rts */
-  /* Return from Subroutine. This returns control to the original caller. */
-  code[9] = 0x4e75; /* Opcode for rts */
-
-
-  /*
-   * The CPU might have an old, empty copy of this memory in its instruction cache.
-   * We must flush the cache to ensure it reads our new instructions.
-   * CacheClearE is the AmigaOS function to do this.
-   */
-  CacheClearE(code, TRAMPOLINE_SIZE, CACRF_ClearI);
-
-  return code;
+static void be_emit8(be_ctx *c, UBYTE v)
+{
+  if ((ULONG)(c->p - c->base) < c->cap) { *(c->p) = v; c->p++; }
+}
+static void be_emit16(be_ctx *c, UWORD v)
+{
+  be_emit8(c, (UBYTE)(v >> 8));
+  be_emit8(c, (UBYTE)(v));
+}
+static void be_emit32(be_ctx *c, ULONG v)
+{
+  be_emit8(c, (UBYTE)(v >> 24));
+  be_emit8(c, (UBYTE)(v >> 16));
+  be_emit8(c, (UBYTE)(v >> 8));
+  be_emit8(c, (UBYTE)(v));
 }
 
-void trampoline_free(void *trampoline) {
+void *trampoline_create(void *target_func, void *context)
+{
+  UBYTE *code;
+  be_ctx c;
+  ULONG scratch;
+
+  code = (UBYTE *)AllocMem(M68K_TOTAL_SIZE, MEMF_PUBLIC);
+  if (!code) return 0;
+
+  c.p = code;
+  c.base = code;
+  c.cap = M68K_TOTAL_SIZE;
+
+  scratch = (ULONG)(code + M68K_CODE_SIZE); /* safe: after the 32-byte code */
+
+  /* movea.l (sp)+,a0 */
+  be_emit16(&c, 0x205F);
+
+  /* move.l a0,(abs).l scratch  ; 23C8 + abs.l */
+  be_emit16(&c, 0x23C8);
+  be_emit32(&c, scratch);
+
+  /* pea <abs.l context>        ; 4879 + abs.l */
+  be_emit16(&c, 0x4879);
+  be_emit32(&c, (ULONG)context);
+
+  /* movea.l #<target>,a1       ; 227C + abs.l */
+  be_emit16(&c, 0x227C);
+  be_emit32(&c, (ULONG)target_func);
+
+  /* jsr (a1)                    ; 4E91 */
+  be_emit16(&c, 0x4E91);
+
+  /* addq.l #4,sp                ; 588F */
+  be_emit16(&c, 0x588F);
+
+  /* move.l (abs).l scratch,-(sp); 2F39 + abs.l */
+  be_emit16(&c, 0x2F39);
+  be_emit32(&c, scratch);
+
+  /* rts                         ; 4E75 */
+  be_emit16(&c, 0x4E75);
+
+  /* Optional: initialize scratch (now safely *outside* the code) */
+  code[M68K_CODE_SIZE + 0] = 0;
+  code[M68K_CODE_SIZE + 1] = 0;
+  code[M68K_CODE_SIZE + 2] = 0;
+  code[M68K_CODE_SIZE + 3] = 0;
+
+  CacheClearE((APTR)code, (ULONG)M68K_TOTAL_SIZE, CACRF_ClearI);
+  return (void *)code;
+}
+
+void trampoline_free(void *trampoline)
+{
   if (trampoline) {
-    /*
-     * Free the memory using the corresponding AmigaOS function.
-     */
-    FreeMem(trampoline, TRAMPOLINE_SIZE);
+    FreeMem((APTR)trampoline, M68K_TOTAL_SIZE);
   }
 }
