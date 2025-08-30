@@ -20,6 +20,8 @@
  * [TT] = 32-bit absolute address of target
  */
 
+#define TRAMPOLINE_M68K_VER 0x00010002 /* 1.2 */
+
 #include "trampoline.h"
 
 #include <exec/types.h>

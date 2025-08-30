@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 void dump_tramp(const char *label, const void *p, unsigned len)
 {
   const unsigned char *b = (const unsigned char*)p;
