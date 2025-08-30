@@ -7,22 +7,18 @@
 extern "C" {
 #endif
 
-/**
- * Create a trampoline that adapts a public function of arity `public_argc`
- * to a target implementation whose first parameter is an implicit `self`.
- *
- * public signature:  (A1, A2, ..., An)         where n = public_argc
- * target signature:  (void *self, A1, ..., An)
- *
- * On success returns a callable function pointer with the PUBLIC signature.
- */
+/* Amiga-family selection: classic m68k AmigaOS, OS4, AROS, MorphOS. */
+#if defined(AMIGA) || defined(__amigaos__) || defined(__amigaos4__) || defined(__AROS__) || defined(__MORPHOS__)
+/* m68k/OS4/AROS/MorphOS use the 2-arg creator (all args on stack). */
+void *trampoline_create(void *target_func, void *context);
+#else
+/* Other platforms use the 3-arg creator (we may need public_argc). */
 void *trampoline_create(void *target_func, void *context, size_t public_argc);
+#endif
 
-/** Free a previously created trampoline. */
 void trampoline_free(void *trampoline);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // TRAMPOLINE_H
+#endif /* TRAMPOLINE_H */
