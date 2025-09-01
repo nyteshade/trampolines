@@ -25,53 +25,19 @@ void *trampoline_create(void *target_func, void *context, size_t public_argc) {
 
   unsigned char *c = mem;
 
-  // For x86 cdecl: all args on stack, we need to shift them and insert context
+  // For x86 cdecl: all args on stack, we need to insert context as first arg
   // Stack on entry: [ret_addr][arg0][arg1]...
   // We need:        [ret_addr][context][arg0][arg1]...
   
-  // Calculate how many bytes to copy (args + return address)
-  // We need to shift: public_argc * 4 bytes of arguments
-  size_t bytes_to_shift = public_argc * 4;
+  // Pop return address
+  *c++ = 0x58;                          // pop eax (save return address)
   
-  if (bytes_to_shift > 0) {
-    // Save registers we'll use
-    *c++ = 0x50;                        // push eax
-    *c++ = 0x51;                        // push ecx  
-    *c++ = 0x52;                        // push edx
-    *c++ = 0x56;                        // push esi
-    *c++ = 0x57;                        // push edi
-    
-    // ESI = source (esp + 28 = skip 5 saved regs (20) + ret addr (4) + point to first arg)
-    // EDI = dest (esp + 24 = skip 5 saved regs (20) + ret addr (4))  
-    *c++ = 0x8D; *c++ = 0x74; *c++ = 0x24; *c++ = 0x1C;  // lea esi, [esp+28]
-    *c++ = 0x8D; *c++ = 0x7C; *c++ = 0x24; *c++ = 0x18;  // lea edi, [esp+24]
-    
-    // ECX = bytes_to_shift
-    *c++ = 0xB9;                        // mov ecx, imm32
-    memcpy(c, &bytes_to_shift, 4); c += 4;
-    
-    // Copy arguments backwards to make room
-    *c++ = 0x01; *c++ = 0xCE;           // add esi, ecx  ; point to end
-    *c++ = 0x01; *c++ = 0xCF;           // add edi, ecx  ; point to end
-    *c++ = 0xFD;                        // std           ; direction flag = backwards
-    *c++ = 0xF3; *c++ = 0xA4;           // rep movsb     ; copy ECX bytes
-    *c++ = 0xFC;                        // cld           ; clear direction flag
-    
-    // Store context at [esp+28] (where first arg was before shifting)
-    *c++ = 0xC7; *c++ = 0x44; *c++ = 0x24; *c++ = 0x1C;  // mov dword [esp+28], imm32
-    memcpy(c, &context, 4); c += 4;
-    
-    // Restore registers
-    *c++ = 0x5F;                        // pop edi
-    *c++ = 0x5E;                        // pop esi
-    *c++ = 0x5A;                        // pop edx
-    *c++ = 0x59;                        // pop ecx
-    *c++ = 0x58;                        // pop eax
-  } else {
-    // No args to shift, just push context
-    *c++ = 0x68;                        // push imm32
-    memcpy(c, &context, 4); c += 4;
-  }
+  // Push context as first argument
+  *c++ = 0x68;                          // push imm32
+  memcpy(c, &context, 4); c += 4;
+  
+  // Push return address back
+  *c++ = 0x50;                          // push eax
   
   // Jump to target (not call, to preserve stack layout)
   *c++ = 0xE9;                          // jmp rel32
