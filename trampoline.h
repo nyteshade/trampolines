@@ -8,50 +8,6 @@
 extern "C" {
 #endif
 
-#define TRAMP_PUB2PRIVATE(public_variable, private_type) \
-  ((private_type)public_variable)
-
-#define TRAMP_PRIVATE2PUB(private_variable, public_type) \
-  ((public_type)private_variable)
-
-#define TRAMP_GETTER(name, context_type, variable_type, variable) \
-  variable_type name(context_type *self) { \
-    return self->variable; \
-  }
-
-#define TRAMP_GETTER_(name, context_type, private_variable_type, variable_type, variable) \
-  variable_type name(context_type *self) { \
-    private_variable_type *private = (private_variable_type *)self; \
-    return private->variable; \
-  }
-
-#define TRAMP_SETTER(name, context_type, variable_type, variable) \
-  void name(context_type *self, variable_type newValue) { \
-    self->variable = newValue; \
-  }
-  
-#define TRAMP_STRING_SETTER(name, context_type, variable) \
-  void name(context_type *self, const char* newValue) { \
-    if (self->variable) { \
-      free(self->variable); \
-    } \
-    self->variable = calloc(1, strlen(newValue) + 1); \
-    if (self->variable) { \
-      strcpy(self->variable, newValue); \
-    } \
-    else { \
-      self->variable = NULL; \
-    } \
-  }
-  
-#define TRAMP_FREE_SETTER(name, context_type, variable_type, variable) \
-  void name(context_type *self, variable_type newValue) { \
-    if (self->variable) { \
-      free(self->variable); \
-    } \
-    self->variable = newValue; \
-  }
-
 /* ------------------------------------------------------------------------ */
 /* A structure containing all the allocations made during the process of    */
 /* initializing a structure with trampoline functions within. This isn't    */
@@ -98,11 +54,11 @@ unsigned char trampolines_validate(
   /* The create_and_track function utilizes the non-tracking processor and  */
   /* OS specific variant of trampoline_create() and wraps tracking logic in */
   /* the non-processor specific trampoline_helpers.c file.                  */
-  /* ---------------------------------------------------------------------- */    
-  
+  /* ---------------------------------------------------------------------- */
+
   void *trampoline_create_and_track(
-    void *target_func, 
-    void *context, 
+    void *target_func,
+    void *context,
     trampoline_allocations *allocations
   );
 
@@ -113,17 +69,17 @@ unsigned char trampolines_validate(
 
 #else
   void *trampoline_create(void *target_func, void *context, size_t public_argc);
-  
+
   /* ---------------------------------------------------------------------- */
   /* The create_and_track function utilizes the non-tracking processor and  */
   /* OS specific variant of trampoline_create() and wraps tracking logic in */
   /* the non-processor specific trampoline_helpers.c file.                  */
-  /* ---------------------------------------------------------------------- */    
+  /* ---------------------------------------------------------------------- */
 
   void *trampoline_create_and_track(
-    void *target_func, 
+    void *target_func,
     void *context,
-    size_t public_args, 
+    size_t public_args,
     trampoline_allocations *allocations
   );
 #endif
@@ -134,6 +90,150 @@ unsigned char trampolines_validate(
 /* ------------------------------------------------------------------------ */
 
 void trampoline_free(void *trampoline);
+
+#define TRAMP_PUB2PRIVATE(public_variable, private_type) \
+  ((private_type)public_variable)
+
+#define TRAMP_PRIVATE2PUB(private_variable, public_type) \
+  ((public_type)private_variable)
+
+#define TRAMP_PROPERTY(name, context_type, variable_type, variable) \
+  variable_type get_##name(context_type *self) { \
+    return self->variable; \
+  } \
+  void set_##name(context_type *self, variable_type newValue) { \
+    self->variable = newValue; \
+  }
+
+#define TRAMP_PROPERTY_(name, context_type, private_variable_type, variable_type, variable) \
+  variable_type get_private_##name(context_type *self) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    return private->variable; \
+  } \
+  void set_private_##name(context_type *self, variable_type newValue) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    private->variable = newValue; \
+  }
+
+#define TRAMP_STRING_PROPERTY(name, context_type, variable) \
+  const char* get_##name(context_type *self) { \
+    return self->variable; \
+  } \
+  void set_##name(context_type *self, const char* newValue) { \
+    if (self->variable) { \
+      free(self->variable); \
+    } \
+    self->variable = calloc(1, strlen(newValue) + 1); \
+    if (self->variable) { \
+      strcpy(self->variable, newValue); \
+    } \
+    else { \
+      self->variable = NULL; \
+    } \
+  }
+
+#define TRAMP_STRING_PROPERTY_(name, context_type, private_variable_type, variable) \
+  const char* get_private_##name(context_type *self) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    return private->variable; \
+  } \
+  void set_private_##name(context_type *self, const char* newValue) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    if (private->variable) { \
+      free(private->variable); \
+    } \
+    private->variable = calloc(1, strlen(newValue) + 1); \
+    if (private->variable) { \
+      strcpy(private->variable, newValue); \
+    } \
+    else { \
+      private->variable = NULL; \
+    } \
+  }
+
+
+#define TRAMP_FREE_PROPERTY(name, context_type, variable_type, variable) \
+  variable_type get_##name(context_type *self) { \
+    return self->variable; \
+  } \
+  void set_freeing_##name(context_type *self, variable_type newValue) { \
+    if (self->variable) { \
+      free(self->variable); \
+    } \
+    self->variable = newValue; \
+  }
+
+#define TRAMP_FREE_PROPERTY_(name, context_type, private_variable_type, variable_type, variable) \
+  variable_type get_##name(context_type *self) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    return private->variable; \
+  } \
+  void set_freeing_##name(context_type *self, variable_type newValue) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    if (private->variable) { \
+      free(private->variable); \
+    } \
+    private->variable = newValue; \
+  }
+
+#define TRAMP_GETTER(name, context_type, variable_type, variable) \
+  variable_type name(context_type *self) { \
+    return self->variable; \
+  }
+
+#define TRAMP_GETTER_(name, context_type, private_variable_type, variable_type, variable) \
+  variable_type name(context_type *self) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    return private->variable; \
+  }
+
+#define TRAMP_SETTER(name, context_type, variable_type, variable) \
+  void name(context_type *self, variable_type newValue) { \
+    self->variable = newValue; \
+  }
+
+#define TRAMP_SETTER_(name, context_type, private_variable_type, variable_type, variable) \
+  void name(context_type *self, variable_type newValue) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    private->variable = newValue; \
+  }
+
+#define TRAMP_STRING_SETTER(name, context_type, variable) \
+  void name(context_type *self, const char* newValue) { \
+    if (self->variable) { \
+      free(self->variable); \
+    } \
+    self->variable = calloc(1, strlen(newValue) + 1); \
+    if (self->variable) { \
+      strcpy(self->variable, newValue); \
+    } \
+    else { \
+      self->variable = NULL; \
+    } \
+  }
+
+#define TRAMP_STRING_SETTER_(name, context_type, private_variable_type, variable) \
+  void name(context_type *self, const char* newValue) { \
+    private_variable_type *private = (private_variable_type *)self; \
+    if (private->variable) { \
+      free(private->variable); \
+    } \
+    private->variable = calloc(1, strlen(newValue) + 1); \
+    if (private->variable) { \
+      strcpy(private->variable, newValue); \
+    } \
+    else { \
+      private->variable = NULL; \
+    } \
+  }
+
+#define TRAMP_FREE_SETTER(name, context_type, variable_type, variable) \
+  void name(context_type *self, variable_type newValue) { \
+    if (self->variable) { \
+      free(self->variable); \
+    } \
+    self->variable = newValue; \
+  }
 
 #ifdef __cplusplus
 }

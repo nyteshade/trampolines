@@ -102,9 +102,85 @@ All implementations follow the same basic pattern:
 - Windows and Unix have significantly different calling conventions even on same CPU
 - Simple, clear implementations are better than complex "clever" ones
 
-## Files Modified This Session
+## Files Modified in Previous Sessions
 - `trampoline_arm64.c` - Fixed and working
 - `trampoline_x86.c` - Fixed, needs testing  
 - `trampoline_arm32.c` - Fixed, needs testing
 - `trampoline_x86_win.c` - Rewritten, needs testing
 - `trampoline_x86_64_win.c` - Rewritten, needs testing
+
+## Network Example Implementation (Current Session)
+
+### Overview
+Created a complete HTTP client implementation using trampolines to demonstrate
+practical usage of the pattern for network programming. The implementation uses
+POSIX sockets for portability between macOS and Linux without external dependencies.
+
+### Files Created
+1. **examples/network/network_request.h** - Public interface with doxygen docs
+2. **examples/network/network_request_impl.c** - Request implementation
+3. **examples/network/network_response.h** - Response interface with doxygen docs  
+4. **examples/network/network_response_impl.c** - Response implementation
+5. **examples/network/network_example.c** - Example usage program
+6. **examples/network/Makefile** - Build system using umbrella trampoline.c
+
+### Key Features Implemented
+- **NetworkRequest struct**: HTTP request builder with trampoline methods
+  - URL parsing and validation
+  - HTTP method support (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+  - Header management with linked list storage
+  - Request body support with automatic Content-Length
+  - Configurable port and timeout
+  - `send()` method that executes the request
+
+- **NetworkResponse struct**: HTTP response parser with trampoline methods
+  - Status code and message parsing
+  - Header parsing and case-insensitive lookup
+  - Body content handling
+  - Error state management
+  - `isSuccess()` helper for 2xx status codes
+
+- **Socket Implementation**:
+  - DNS resolution via `gethostbyname()`
+  - TCP socket creation and connection
+  - HTTP/1.1 protocol implementation
+  - Timeout support using socket options
+  - Proper resource cleanup on errors
+
+### Macro Additions to trampoline.h
+Added new macros for private struct member access:
+- `TRAMP_SETTER_` - Setter for private struct members
+- `TRAMP_STRING_SETTER_` - String setter with memory management for private members
+
+### Code Quality Improvements
+- Comprehensive doxygen documentation with examples
+- All lines kept under 80 columns for readability
+- Consistent error handling throughout
+- Memory leak prevention with proper cleanup
+
+### Build System
+Created Makefile that:
+- Uses umbrella `trampoline.c` for automatic platform detection
+- Provides targets: all, run, clean, debug, docs, help
+- Successfully tested on macOS ARM64
+
+### Testing Status
+✅ **Fully Working**: Network example successfully makes HTTP requests to httpbin.org
+- GET requests with headers work correctly
+- POST requests with JSON bodies work correctly  
+- Response parsing handles status, headers, and body
+- All trampoline functions operate as expected
+
+### Limitations Noted
+- HTTP only (HTTPS would require SSL/TLS library)
+- Fixed 64KB response buffer size
+- Basic HTTP/1.1 implementation
+- Synchronous/blocking operations only
+
+### Architecture Benefits Demonstrated
+The network example shows how trampolines enable:
+1. Object-oriented design in C with method-like syntax
+2. Clean separation of public interface and private implementation
+3. Encapsulation of complex state (sockets, headers, buffers)
+4. Intuitive API: `request->setHeader("User-Agent", "MyApp")`
+5. Resource management: `response->free()` cleans up everything
