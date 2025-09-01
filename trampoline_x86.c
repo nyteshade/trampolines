@@ -41,10 +41,10 @@ void *trampoline_create(void *target_func, void *context, size_t public_argc) {
     *c++ = 0x56;                        // push esi
     *c++ = 0x57;                        // push edi
     
-    // ESI = source (esp + 24 = skip 5 saved regs + ret addr)
-    // EDI = dest (esp + 20 = skip 5 saved regs)  
-    *c++ = 0x8D; *c++ = 0x74; *c++ = 0x24; *c++ = 0x18;  // lea esi, [esp+24]
-    *c++ = 0x8D; *c++ = 0x7C; *c++ = 0x24; *c++ = 0x14;  // lea edi, [esp+20]
+    // ESI = source (esp + 28 = skip 5 saved regs (20) + ret addr (4) + point to first arg)
+    // EDI = dest (esp + 24 = skip 5 saved regs (20) + ret addr (4))  
+    *c++ = 0x8D; *c++ = 0x74; *c++ = 0x24; *c++ = 0x1C;  // lea esi, [esp+28]
+    *c++ = 0x8D; *c++ = 0x7C; *c++ = 0x24; *c++ = 0x18;  // lea edi, [esp+24]
     
     // ECX = bytes_to_shift
     *c++ = 0xB9;                        // mov ecx, imm32
@@ -57,8 +57,8 @@ void *trampoline_create(void *target_func, void *context, size_t public_argc) {
     *c++ = 0xF3; *c++ = 0xA4;           // rep movsb     ; copy ECX bytes
     *c++ = 0xFC;                        // cld           ; clear direction flag
     
-    // Store context at [esp+24] (where first arg was)
-    *c++ = 0xC7; *c++ = 0x44; *c++ = 0x24; *c++ = 0x18;  // mov dword [esp+24], imm32
+    // Store context at [esp+28] (where first arg was before shifting)
+    *c++ = 0xC7; *c++ = 0x44; *c++ = 0x24; *c++ = 0x1C;  // mov dword [esp+28], imm32
     memcpy(c, &context, 4); c += 4;
     
     // Restore registers
