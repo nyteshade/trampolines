@@ -29,15 +29,11 @@ void *trampoline_create(void *target_func, void *context, size_t public_argc) {
   // Stack on entry: [ret_addr][arg0][arg1]...
   // We need:        [ret_addr][context][arg0][arg1]...
   
-  // Pop return address
-  *c++ = 0x58;                          // pop eax (save return address)
-  
-  // Push context as first argument
-  *c++ = 0x68;                          // push imm32
+  // Pop return address, push context, push return address back
+  *c++ = 0x59;                          // pop ecx           ; return address in ecx
+  *c++ = 0x68;                          // push imm32        ; push context
   memcpy(c, &context, 4); c += 4;
-  
-  // Push return address back
-  *c++ = 0x50;                          // push eax
+  *c++ = 0x51;                          // push ecx          ; push return address back
   
   // Jump to target (not call, to preserve stack layout)
   *c++ = 0xE9;                          // jmp rel32
