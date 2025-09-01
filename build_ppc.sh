@@ -1,10 +1,7 @@
 #!/usr/bin/env sh
 
 if [[ $1 = "clean" ]]; then
-  rm -v *.a
-  rm -v *.dylib
-  rm -v *.o
-  rm -rfv build/
+  rm -rf build/
 
   printf "Build artifacts removed!\n"
   
@@ -113,7 +110,9 @@ else
   printf "\x1b[31mfailed\x1b[39m\n"
 fi
 
+printf "\x1b[1m"
 lipo -info libtrampoline.a
+printf "\x1b[22m\n"
 
 # Let's make some dylibs
 
@@ -240,7 +239,9 @@ else
   printf "\x1b[31mfailed\x1b[39m\n"
 fi
 
+printf "\x1b[1m"
 lipo -info build/embedded/libtrampoline.dylib
+printf "\x1b[22m\n"
 
 # -------------- global dylib -------------------
 
@@ -367,17 +368,33 @@ else
   printf "\x1b[31mfailed\x1b[39m\n"
 fi
 
+printf "\x1b[1m"
 lipo -info build/global/libtrampoline.dylib
+printf "\x1b[22m\n"
 
+mkdir -p build/static
+mv libtrampoline.*.a libtrampoline.a build/static
+mv *.embedded*.dylib build/embedded
+mv *.global*.dylib build/global
 rm *.o
+
+printf "\n\x1b[1mGlobal dynamic libraries\x1b[22m (./build/global)\n"
+ls build/global
+
+printf "\n\x1b[1mEmbedded dynamic libraries\x1b[22m (./build/embedded)\n"
+ls build/embedded
+
+printf "\n\x1b[1mStatic libraries\x1b[22m (./build/static)\n"
+ls build/static
+
+printf "\n"
 
 # --- Install?
 
 if [[ $1 = "install" ]]; then
   printf "Installing to /usr/lib and /usr/include, you may need to enter your password\n"
-  sudo cp *.dylib /usr/lib
   sudo cp build/global/*.dylib /usr/lib
-  sudo cp *.a /usr/lib
+  sudo cp build/static/*.a /usr/lib
   sudo cp *.h /usr/include
   printf "\ndone!\n"
 fi
