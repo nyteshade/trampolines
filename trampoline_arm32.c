@@ -34,6 +34,7 @@ static inline uint32_t MOV_rr(uint8_t rd, uint8_t rm) { // mov rd, rm
     if (mem == MAP_FAILED) return NULL;
 
     uint32_t *c = (uint32_t*)mem;
+    uint32_t *base = c;
 
     // Save old r3 in r12
     *c++ = MOV_rr(12, 3);
@@ -44,17 +45,21 @@ static inline uint32_t MOV_rr(uint8_t rd, uint8_t rm) { // mov rd, rm
     if (public_argc >= 1) *c++ = MOV_rr(1, 0);
 
     // r0 = context (literal load)
-    // ldr r0, [pc, #imm]
-    *c++ = LDR_lit(0, 8); // points 8 bytes past this insn
+    // We'll place literals at the end and calculate offsets
+    uint32_t *ldr_context_pos = c;
+    *c++ = 0; // Placeholder for LDR instruction
+    
     // if >=4: make room on stack and store old r3 as first stack arg
     if (public_argc >= 4) {
       *c++ = SUB_sp_imm(8);              // sub sp,sp,#8  (keep 8B align)
-      *c++ = STR_imm(12, 13, 0);         // str r12,[sp]
-      *c++ = STR_imm(0x0F, 13, 4);       // str r15,[sp,#4] (use r15=pc as zero-ish padding is not ideal; you can write MOV r1,#0; STR r1,[sp,#4] instead)
+      *c++ = STR_imm(12, 13, 0);         // str r12,[sp] - store old r3
+      *c++ = 0xE3A01000;                 // mov r1, #0 - use r1 as temp for zero
+      *c++ = STR_imm(1, 13, 4);          // str r1,[sp,#4] - store 0 for padding
     }
 
     // load target into r12 and blx r12
-    *c++ = LDR_lit(12, (public_argc >= 4 ? 8 : 4));
+    uint32_t *ldr_target_pos = c;
+    *c++ = 0; // Placeholder for LDR instruction
     *c++ = 0xE12FFF3C;                   // blx r12
 
     if (public_argc >= 4) {
@@ -63,8 +68,17 @@ static inline uint32_t MOV_rr(uint8_t rd, uint8_t rm) { // mov rd, rm
     *c++ = 0xE12FFF1E;                   // bx lr
 
     // Literal pool: context, target
+    uint32_t *literal_pool = c;
     *c++ = (uint32_t)context;
     *c++ = (uint32_t)target_func;
+    
+    // Now fix up the LDR instructions with correct offsets
+    // ARM PC is 8 bytes ahead of current instruction
+    int context_offset = (literal_pool - ldr_context_pos) * 4 - 8;
+    int target_offset = (literal_pool - ldr_target_pos) * 4 - 8 + 4; // +4 to skip context literal
+    
+    *ldr_context_pos = LDR_lit(0, context_offset);
+    *ldr_target_pos = LDR_lit(12, target_offset);
 
     __builtin___clear_cache((char*)mem, (char*)mem + SIZE);
     mprotect(mem, SIZE, PROT_READ|PROT_EXEC);

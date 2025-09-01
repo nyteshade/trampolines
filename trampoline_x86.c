@@ -18,8 +18,6 @@ static size_t page_size(void) {
 }
 
 void *trampoline_create(void *target_func, void *context, size_t public_argc) {
-  (void)public_argc; // all args are stack-passed on i386 SysV
-
   const size_t ps   = page_size();
   unsigned char *mem = (unsigned char *)mmap(
       NULL, ps, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -27,22 +25,28 @@ void *trampoline_create(void *target_func, void *context, size_t public_argc) {
 
   unsigned char *c = mem;
 
-  // prologue: save original return in ECX, insert context, then CALL target
-  *c++ = 0x59;                          // pop ecx                 ; save caller_ret
-  *c++ = 0x68;                          // push imm32 (context)
-  memcpy(c, &context, 4); c += 4;
-
-  // call rel32 target_func
-  {
-    *c++ = 0xE8;                        // call rel32
-    int32_t rel = (int32_t)((intptr_t)target_func - ((intptr_t)c + 4));
-    memcpy(c, &rel, 4); c += 4;
+  // For i386 cdecl: we need to insert context as first argument
+  // Stack on entry: [ret_addr][arg0][arg1]...
+  // Stack needed:   [ret_addr][context][arg0][arg1]...
+  
+  if (public_argc == 0) {
+    // No arguments - simple case, just push context and jump
+    *c++ = 0x68;                        // push imm32
+    memcpy(c, &context, 4); c += 4;
+  } else {
+    // We have arguments - need to make room for context
+    // Strategy: pop return address, push context, push return address, then jump
+    
+    *c++ = 0x58;                        // pop eax ; return address in eax
+    *c++ = 0x68;                        // push imm32 ; push context
+    memcpy(c, &context, 4); c += 4;
+    *c++ = 0x50;                        // push eax ; push return address back
   }
-
-  // epilogue: drop injected context, restore caller_ret, return
-  *c++ = 0x83; *c++ = 0xC4; *c++ = 0x04; // add esp, 4             ; pop context
-  *c++ = 0x51;                          // push ecx                ; push caller_ret
-  *c++ = 0xC3;                          // ret
+  
+  // Jump to target function
+  *c++ = 0xE9;                          // jmp rel32
+  int32_t rel = (int32_t)((intptr_t)target_func - ((intptr_t)c + 4));
+  memcpy(c, &rel, 4); c += 4;
 
   // RX permissions
   if (mprotect(mem, ps, PROT_READ | PROT_EXEC) != 0) {

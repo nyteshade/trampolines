@@ -11,10 +11,10 @@
 
 #define EMIT32(x)  (*code++ = (uint32_t)(x))
 static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
-    EMIT32(0xD2800000 | ((v & 0xFFFF) << 5)  | xd);          // movz
-    EMIT32(0xF2A00000 | (((v>>16)&0xFFFF) << 5) | xd);       // movk #16
-    EMIT32(0xF2C00000 | (((v>>32)&0xFFFF) << 5) | xd);       // movk #32
-    EMIT32(0xF2E00000 | (((v>>48)&0xFFFF) << 5) | xd);       // movk #48
+    *b++ = 0xD2800000 | ((v & 0xFFFF) << 5)  | xd;          // movz
+    *b++ = 0xF2A00000 | (((v>>16)&0xFFFF) << 5) | xd;       // movk #16
+    *b++ = 0xF2C00000 | (((v>>32)&0xFFFF) << 5) | xd;       // movk #32
+    *b++ = 0xF2E00000 | (((v>>48)&0xFFFF) << 5) | xd;       // movk #48
     return b;
   }
   static inline uint32_t mov_reg(uint8_t xd, uint8_t xm) {   // mov xd,xm
@@ -42,10 +42,10 @@ static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
     // Save old x7 in x9 (harmless if argc<7)
     EMIT32(mov_reg(9, 7));
 
-    // Shift regs: for i=min(7,argc)..1: mov x{i+1}, x{i}
+    // Shift regs: for i=min(7,argc)..1: mov x{i}, x{i-1}
     size_t maxr = public_argc < 7 ? public_argc : 7;
     for (size_t i = maxr; i >= 1; i--) {
-      EMIT32(mov_reg((uint8_t)(i+1), (uint8_t)i));
+      EMIT32(mov_reg((uint8_t)i, (uint8_t)(i-1)));
       if (i == 1) break;
     }
 
@@ -55,7 +55,7 @@ static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
     if (public_argc >= 8) {
       // Keep 16B alignment, push old x7 into [sp], pad 8 bytes
       // sub sp, sp, #16
-      EMIT32(sub_imm_sp(16/16)); // imm12 is scaled by 16? (AArch64 immediate for add/sub uses 12-bit unscaled)
+      EMIT32(sub_imm_sp(16)); // imm12 is unscaled for sub/add
       // str x9, [sp]
       EMIT32(0xF90003E9); // STR X9, [SP,#0]
       // str xzr, [sp,#8]   (pad)
@@ -63,7 +63,7 @@ static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
       // blr x17
       EMIT32(0xD63F0220);
       // add sp, sp, #16 ; ret
-      EMIT32(add_imm_sp(31, 16/16)); // ADD SP,SP,#16 (encoded as add xzr? we used helper only for xd, so we can hand-emit)
+      EMIT32(0x910043FF); // ADD SP,SP,#16 - direct encoding
       // ret
       EMIT32(0xD65F03C0);
     } else {
