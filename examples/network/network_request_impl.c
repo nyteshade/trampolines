@@ -175,10 +175,11 @@ static int parse_url(const char* url, char** hostname, char** path, int* port) {
     return -1;
   }
 
-  const char* path_start = strchr(url_start, '/');
-  size_t host_len;
+  {
+    const char* path_start = strchr(url_start, '/');
+    size_t host_len;
 
-  if (path_start) {
+    if (path_start) {
     host_len = path_start - url_start;
     *path = calloc(1, strlen(path_start) + 1);
     strcpy(*path, path_start);
@@ -188,13 +189,16 @@ static int parse_url(const char* url, char** hostname, char** path, int* port) {
     strcpy(*path, "/");
   }
 
-  *hostname = calloc(1, host_len + 1);
-  strncpy(*hostname, url_start, host_len);
+    *hostname = calloc(1, host_len + 1);
+    strncpy(*hostname, url_start, host_len);
 
-  char* port_start = strchr(*hostname, ':');
-  if (port_start) {
-    *port_start = '\0';
-    *port = atoi(port_start + 1);
+    {
+      char* port_start = strchr(*hostname, ':');
+      if (port_start) {
+        *port_start = '\0';
+        *port = atoi(port_start + 1);
+      }
+    }
   }
 
   return 0;
@@ -205,22 +209,23 @@ static NetworkResponse* parse_http_response(const char* raw_response,
   NetworkResponse* response = NetworkResponseMake();
   if (!response) return NULL;
 
-  NetworkResponse_* private = (NetworkResponse_*)response;
+  {
+    NetworkResponse_* private = (NetworkResponse_*)response;
+    const char* line_end = strstr(raw_response, "\r\n");
+    char status_line[256];
+    size_t status_len;
+    char version[16];
+    char status_msg[128] = "";
 
-  const char* line_end = strstr(raw_response, "\r\n");
-  if (!line_end) {
-    response->free();
-    return NetworkResponseMakeError("Invalid HTTP response");
-  }
+    if (!line_end) {
+      response->free();
+      return NetworkResponseMakeError("Invalid HTTP response");
+    }
 
-  char status_line[256];
-  size_t status_len = line_end - raw_response;
-  if (status_len >= sizeof(status_line)) status_len = sizeof(status_line) - 1;
-  strncpy(status_line, raw_response, status_len);
-  status_line[status_len] = '\0';
-
-  char version[16];
-  char status_msg[128] = "";
+    status_len = line_end - raw_response;
+    if (status_len >= sizeof(status_line)) status_len = sizeof(status_line) - 1;
+    strncpy(status_line, raw_response, status_len);
+    status_line[status_len] = '\0';
   if (sscanf(status_line, "%15s %d %127[^\r\n]", version,
              &private->status_code, status_msg) < 2) {
     response->free();
@@ -267,13 +272,16 @@ static NetworkResponse* parse_http_response(const char* raw_response,
     header_line = next_line + 2;
   }
 
-  const char* body_start = headers_end + 4;
-  size_t body_len = response_len - (body_start - raw_response);
+    {
+      const char* body_start = headers_end + 4;
+      size_t body_len = response_len - (body_start - raw_response);
 
-  if (body_len > 0) {
-    private->body = calloc(1, body_len + 1);
-    memcpy(private->body, body_start, body_len);
-    private->body_length = body_len;
+      if (body_len > 0) {
+        private->body = calloc(1, body_len + 1);
+        memcpy(private->body, body_start, body_len);
+        private->body_length = body_len;
+      }
+    }
   }
 
   return response;
@@ -281,14 +289,15 @@ static NetworkResponse* parse_http_response(const char* raw_response,
 
 NetworkResponse* networkrequest_send(NetworkRequest* self) {
   NetworkRequest_* private = (NetworkRequest_*)self;
+  char* hostname = NULL;
+  char* path = NULL;
+  int port;
 
   if (!private->url) {
     return NetworkResponseMakeError("No URL specified");
   }
 
-  char* hostname = NULL;
-  char* path = NULL;
-  int port = private->port;
+  port = private->port;
 
   if (parse_url(private->url, &hostname, &path, &port) != 0) {
     if (hostname) free(hostname);
@@ -374,9 +383,10 @@ NetworkResponse* networkrequest_send(NetworkRequest* self) {
     }
   }
 
-  char response_buffer[65536];
-  size_t total_received = 0;
-  ssize_t bytes_received;
+  {
+    char response_buffer[65536];
+    size_t total_received = 0;
+    ssize_t bytes_received;
 
   while ((bytes_received = recv(sockfd, response_buffer + total_received,
           sizeof(response_buffer) - total_received - 1, 0)) > 0) {
@@ -392,9 +402,10 @@ NetworkResponse* networkrequest_send(NetworkRequest* self) {
     return NetworkResponseMakeError("No response received");
   }
 
-  response_buffer[total_received] = '\0';
+    response_buffer[total_received] = '\0';
 
-  return parse_http_response(response_buffer, total_received);
+    return parse_http_response(response_buffer, total_received);
+  }
 }
 
 void networkrequest_free(NetworkRequest* self) {

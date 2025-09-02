@@ -184,3 +184,113 @@ The network example shows how trampolines enable:
 3. Encapsulation of complex state (sockets, headers, buffers)
 4. Intuitive API: `request->setHeader("User-Agent", "MyApp")`
 5. Resource management: `response->free()` cleans up everything
+
+## Map v2 Example Implementation (Current Session Continued)
+
+### Overview
+Debugged and fixed critical segfault issues in the Map v2 with MapNode integration example,
+then converted all examples to C89 compatibility for m68k platform support, and enhanced 
+the build system to support all sample applications.
+
+### Critical Segfault Fix
+**Root Cause**: Incorrect struct casting between `Map` and `MapPrivate` structures. The original
+implementation cast `MapPrivate*` directly to `Map*`, but the trampoline self-pointer expected
+`Map*` while the actual memory layout started with `MapPrivate` fields.
+
+**Solution Applied**: Implemented embedded struct pattern:
+```c
+typedef struct MapPrivate {
+    Map public;          // Public interface MUST be first
+    MapEntry** buckets;  // Private implementation fields
+    size_t capacity;
+    size_t size;
+    float max_load_factor;
+} MapPrivate;
+
+// Usage: Map* map = &priv->public; instead of (Map*)priv
+```
+
+**Result**: Both `map_test` and `simple_map_test` now run without segfaults, demonstrating
+comprehensive Map v2 functionality with zero-cognitive-load API.
+
+### C89 Compatibility Conversion
+
+**Rationale**: Support for m68k variants which use C89 compilers.
+
+**Files Updated for C89 Compliance**:
+- `examples/network/network_example.c`
+- `examples/network/network_request_impl.c` 
+- `examples/network/network_response_impl.c`
+- `examples/map/map_example.c`
+- `examples/map/map_impl.c`
+- `examples/map/mapnode_impl.c`
+- `examples/map/debug_map.c`
+
+**Key Changes Made**:
+1. **Variable Declarations**: Moved all variable declarations to beginning of blocks
+2. **For Loop Variables**: Changed `for (size_t i = 0; ...)` to:
+   ```c
+   size_t i;
+   for (i = 0; i < count; i++) { ... }
+   ```
+3. **Block Scoping**: Added proper `{ }` blocks where needed for variable scope
+4. **Include Paths**: Fixed relative paths from `<trampoline.h>` to `"../../trampoline.h"`
+
+**Verification**: All examples compile with `-std=c89` flag and maintain full functionality.
+
+### Enhanced Build System (Map Example)
+
+**Makefile Improvements**:
+- **All Sample Apps**: Now builds 6 sample applications instead of just 1:
+  - `map_test` - Complete Map v2 demonstration  
+  - `mapnode_test` - MapNode-only tests
+  - `usage_example` - Usage demonstrations
+  - `simple_map_test` - Basic functionality test
+  - `debug_map` - Debug tracing example
+  - `minimal_map` - Minimal implementation test
+
+- **Enhanced Clean Target**: Removes all binaries, .dSYM directories, and documentation
+- **New Test Targets**: `test-simple`, `test-debug`, `test-minimal`, `test-all`
+- **Updated Documentation**: Help target shows all available commands
+
+**Dependencies Fixed**: 
+- Ensured all sample apps include necessary implementation files
+- Fixed include paths for consistency
+- Added proper source file dependencies in Makefile rules
+
+### Network Example Fix
+**Issue**: Network example was broken due to incorrect brace pairing from C89 conversion
+**Resolution**: Fixed control flow structure and variable declarations in POST request section
+**Result**: Network example builds and runs correctly, making successful HTTP GET/POST requests
+
+### Testing Status Summary
+✅ **All Examples Working**:
+- Network example: Successfully makes HTTP requests  
+- Map example: All 6 sample apps compile and run correctly
+- Segfault issues resolved in both test executables
+- C89 compatibility maintained across all examples
+- Build systems enhanced and fully functional
+
+### Files Modified This Session
+- `examples/map/map_impl.c` - Fixed embedded struct pattern, C89 compliance
+- `examples/map/map_example.c` - C89 variable declaration fixes
+- `examples/map/mapnode_impl.c` - C89 for-loop fixes  
+- `examples/map/debug_map.c` - Added map implementation include, fixed include path
+- `examples/map/simple_map_test.c` - Already fixed in previous session continuation
+- `examples/map/Makefile` - Complete enhancement for all sample apps
+- `examples/network/network_example.c` - Fixed brace structure from C89 conversion
+- `examples/network/network_request_impl.c` - C89 compliance fixes
+- `examples/network/network_response_impl.c` - C89 compliance fixes
+
+### Key Architectural Insights
+1. **Embedded Struct Pattern**: Critical for trampoline self-pointer correctness
+2. **Memory Layout**: Public interface must be first member for casting to work
+3. **C89 Compatibility**: Essential for legacy platform support (m68k variants)
+4. **Build System Design**: Comprehensive sample app coverage improves usability
+
+### Current Project Status
+- ✅ **Core Trampolines**: ARM64 working, others architectures fixed but need testing
+- ✅ **Network Example**: Fully functional HTTP client with C89 compatibility
+- ✅ **Map Example**: Complete hash table with MapNode integration, all samples working
+- ✅ **Build Systems**: Enhanced Makefiles with comprehensive targets and cleanup
+- ✅ **Platform Compatibility**: C89 compliance for widest possible platform support

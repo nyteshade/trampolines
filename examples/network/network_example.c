@@ -37,11 +37,14 @@ int main(int argc, char **argv) {
         response->statusMessage() ? response->statusMessage() : "");
 
       printf("\nResponse Headers:\n");
-      const char** header_keys = response->allHeaderKeys();
-      if (header_keys) {
-        for (size_t i = 0; i < response->headerCount(); i++) {
-          if (header_keys[i]) {
-            printf("  %s: %s\n", header_keys[i], response->header(header_keys[i]));
+      {
+        const char** header_keys = response->allHeaderKeys();
+        if (header_keys) {
+          size_t i;
+          for (i = 0; i < response->headerCount(); i++) {
+            if (header_keys[i]) {
+              printf("  %s: %s\n", header_keys[i], response->header(header_keys[i]));
+            }
           }
         }
       }
@@ -62,25 +65,29 @@ int main(int argc, char **argv) {
 
   printf("\n--- POST Request Example ---\n");
 
-  NetworkRequest* post_request = NetworkRequestMake("http://httpbin.org/post", HTTP_POST);
-  if (post_request) {
-    post_request->setHeader("Content-Type", "application/json");
-    post_request->setBody("{\"message\":\"Hello from trampoline network client!\"}");
+  {
+    NetworkRequest* post_request = NetworkRequestMake("http://httpbin.org/post", HTTP_POST);
+    if (post_request) {
+      NetworkResponse* post_response;
+      
+      post_request->setHeader("Content-Type", "application/json");
+      post_request->setBody("{\"message\":\"Hello from trampoline network client!\"}");
 
-    printf("Sending POST request with body...\n");
-    NetworkResponse* post_response = post_request->send();
+      printf("Sending POST request with body...\n");
+      post_response = post_request->send();
 
-    if (post_response) {
-      if (post_response->isSuccess()) {
-        printf("POST Success! Status: %d\n", post_response->statusCode());
-        printf("Response excerpt: %.200s...\n", post_response->body());
-      } else {
-        printf("POST failed: %s\n", post_response->error());
+      if (post_response) {
+        if (post_response->isSuccess()) {
+          printf("POST Success! Status: %d\n", post_response->statusCode());
+          printf("Response excerpt: %.200s...\n", post_response->body());
+        } else {
+          printf("POST failed: %s\n", post_response->error());
+        }
+        post_response->free();
       }
-      post_response->free();
-    }
 
-    post_request->free();
+      post_request->free();
+    }
   }
 
   request->free();
