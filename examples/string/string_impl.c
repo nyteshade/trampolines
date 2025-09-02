@@ -27,17 +27,20 @@ typedef struct StringPrivate {
 /* ======================================================================== */
 
 static bool string_ensure_capacity(StringPrivate* priv, size_t required) {
+    size_t new_capacity;
+    char* new_data;
+    
     if (!priv) return false;
     
     if (required <= priv->capacity) return true;
     
     /* Double capacity until sufficient */
-    size_t new_capacity = priv->capacity * 2;
+    new_capacity = priv->capacity * 2;
     while (new_capacity < required) {
         new_capacity *= 2;
     }
     
-    char* new_data = realloc(priv->data, new_capacity);
+    new_data = realloc(priv->data, new_capacity);
     if (!new_data) return false;
     
     priv->data = new_data;
@@ -46,9 +49,12 @@ static bool string_ensure_capacity(StringPrivate* priv, size_t required) {
 }
 
 static char* string_strdup(const char* str) {
+    size_t len;
+    char* copy;
+    
     if (!str) return NULL;
-    size_t len = strlen(str);
-    char* copy = malloc(len + 1);
+    len = strlen(str);
+    copy = malloc(len + 1);
     if (copy) {
         memcpy(copy, str, len + 1);
     }
@@ -95,10 +101,13 @@ char string_char_at(String* self, size_t index) {
 
 bool string_append(String* self, const char* str) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t add_len;
+    size_t new_len;
+    
     if (!str || !*str) return true;
     
-    size_t add_len = strlen(str);
-    size_t new_len = priv->length + add_len;
+    add_len = strlen(str);
+    new_len = priv->length + add_len;
     
     if (!string_ensure_capacity(priv, new_len + 1)) return false;
     
@@ -150,10 +159,13 @@ bool string_append_format(String* self, const char* format, ...) {
 
 bool string_prepend(String* self, const char* str) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t add_len;
+    size_t new_len;
+    
     if (!str || !*str) return true;
     
-    size_t add_len = strlen(str);
-    size_t new_len = priv->length + add_len;
+    add_len = strlen(str);
+    new_len = priv->length + add_len;
     
     if (!string_ensure_capacity(priv, new_len + 1)) return false;
     
@@ -168,14 +180,17 @@ bool string_prepend(String* self, const char* str) {
 
 bool string_insert(String* self, size_t index, const char* str) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t add_len;
+    size_t new_len;
+    
     if (!str || !*str) return true;
     if (index > priv->length) return false;
     
     if (index == 0) return string_prepend(self, str);
     if (index == priv->length) return string_append(self, str);
     
-    size_t add_len = strlen(str);
-    size_t new_len = priv->length + add_len;
+    add_len = strlen(str);
+    new_len = priv->length + add_len;
     
     if (!string_ensure_capacity(priv, new_len + 1)) return false;
     
@@ -192,13 +207,18 @@ bool string_insert(String* self, size_t index, const char* str) {
 
 size_t string_replace(String* self, const char* find, const char* replace) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t count = 0;
+    size_t find_len;
+    size_t replace_len;
+    size_t new_len;
+    char* pos;
+    
     if (!find || !*find) return 0;
     if (!replace) replace = "";
     
-    size_t count = 0;
-    size_t find_len = strlen(find);
-    size_t replace_len = strlen(replace);
-    char* pos = priv->data;
+    find_len = strlen(find);
+    replace_len = strlen(replace);
+    pos = priv->data;
     
     /* Count occurrences first */
     while ((pos = strstr(pos, find)) != NULL) {
@@ -209,7 +229,7 @@ size_t string_replace(String* self, const char* find, const char* replace) {
     if (count == 0) return 0;
     
     /* Calculate new length */
-    size_t new_len = priv->length + count * (replace_len - find_len);
+    new_len = priv->length + count * (replace_len - find_len);
     
     if (replace_len > find_len) {
         /* Need more space */
@@ -226,12 +246,16 @@ size_t string_replace(String* self, const char* find, const char* replace) {
         }
     } else {
         /* Different size - need to rebuild string */
-        char* new_data = malloc(new_len + 1);
+        char* new_data;
+        char* src;
+        char* dst;
+        char* found;
+        
+        new_data = malloc(new_len + 1);
         if (!new_data) return 0;
         
-        char* src = priv->data;
-        char* dst = new_data;
-        char* found;
+        src = priv->data;
+        dst = new_data;
         
         while ((found = strstr(src, find)) != NULL) {
             size_t prefix_len = found - src;
@@ -254,17 +278,24 @@ size_t string_replace(String* self, const char* find, const char* replace) {
 
 bool string_replace_first(String* self, const char* find, const char* replace) {
     StringPrivate* priv = (StringPrivate*)self;
+    char* pos;
+    size_t find_len;
+    size_t replace_len;
+    size_t prefix_len;
+    size_t suffix_start;
+    size_t new_len;
+    
     if (!find || !*find) return false;
     if (!replace) replace = "";
     
-    char* pos = strstr(priv->data, find);
+    pos = strstr(priv->data, find);
     if (!pos) return false;
     
-    size_t find_len = strlen(find);
-    size_t replace_len = strlen(replace);
-    size_t prefix_len = pos - priv->data;
-    size_t suffix_start = prefix_len + find_len;
-    size_t new_len = priv->length - find_len + replace_len;
+    find_len = strlen(find);
+    replace_len = strlen(replace);
+    prefix_len = pos - priv->data;
+    suffix_start = prefix_len + find_len;
+    new_len = priv->length - find_len + replace_len;
     
     if (replace_len > find_len) {
         if (!string_ensure_capacity(priv, new_len + 1)) return false;
@@ -300,13 +331,17 @@ bool string_set(String* self, const char* str) {
 
 void string_reverse(String* self) {
     StringPrivate* priv = (StringPrivate*)self;
+    char* start;
+    char* end;
+    char temp;
+    
     if (priv->length <= 1) return;
     
-    char* start = priv->data;
-    char* end = priv->data + priv->length - 1;
+    start = priv->data;
+    end = priv->data + priv->length - 1;
     
     while (start < end) {
-        char temp = *start;
+        temp = *start;
         *start = *end;
         *end = temp;
         start++;
@@ -342,16 +377,19 @@ String* string_clone(String* self);
 
 String* string_substring(String* self, size_t start, size_t length) {
     StringPrivate* priv = (StringPrivate*)self;
+    String* result;
+    StringPrivate* res_priv;
+    
     if (start >= priv->length) return StringMake("");
     
     if (length == 0 || start + length > priv->length) {
         length = priv->length - start;
     }
     
-    String* result = StringMakeWithCapacity(NULL, length + 1);
+    result = StringMakeWithCapacity(NULL, length + 1);
     if (!result) return NULL;
     
-    StringPrivate* res_priv = (StringPrivate*)result;
+    res_priv = (StringPrivate*)result;
     memcpy(res_priv->data, priv->data + start, length);
     res_priv->data[length] = '\0';
     res_priv->length = length;
@@ -361,7 +399,6 @@ String* string_substring(String* self, size_t start, size_t length) {
 
 String* string_trim(String* self) {
     StringPrivate* priv = (StringPrivate*)self;
-    
     size_t start = 0;
     size_t end = priv->length;
     
@@ -423,15 +460,19 @@ String* string_clone(String* self) {
 
 String* string_repeat(String* self, size_t count) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t new_len;
+    String* result;
+    StringPrivate* res_priv;
+    size_t i;
+    
     if (count == 0) return StringMake("");
     if (count == 1) return string_clone(self);
     
-    size_t new_len = priv->length * count;
-    String* result = StringMakeWithCapacity(NULL, new_len + 1);
+    new_len = priv->length * count;
+    result = StringMakeWithCapacity(NULL, new_len + 1);
     if (!result) return NULL;
     
-    StringPrivate* res_priv = (StringPrivate*)result;
-    size_t i;
+    res_priv = (StringPrivate*)result;
     for (i = 0; i < count; i++) {
         memcpy(res_priv->data + (i * priv->length), priv->data, priv->length);
     }
@@ -453,9 +494,11 @@ bool string_contains(String* self, const char* needle) {
 
 bool string_starts_with(String* self, const char* prefix) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t prefix_len;
+    
     if (!prefix) return false;
     
-    size_t prefix_len = strlen(prefix);
+    prefix_len = strlen(prefix);
     if (prefix_len > priv->length) return false;
     
     return memcmp(priv->data, prefix, prefix_len) == 0;
@@ -463,9 +506,11 @@ bool string_starts_with(String* self, const char* prefix) {
 
 bool string_ends_with(String* self, const char* suffix) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t suffix_len;
+    
     if (!suffix) return false;
     
-    size_t suffix_len = strlen(suffix);
+    suffix_len = strlen(suffix);
     if (suffix_len > priv->length) return false;
     
     return memcmp(priv->data + priv->length - suffix_len, suffix, suffix_len) == 0;
@@ -473,9 +518,11 @@ bool string_ends_with(String* self, const char* suffix) {
 
 size_t string_index_of(String* self, const char* needle) {
     StringPrivate* priv = (StringPrivate*)self;
+    char* found;
+    
     if (!needle) return (size_t)-1;
     
-    char* found = strstr(priv->data, needle);
+    found = strstr(priv->data, needle);
     if (!found) return (size_t)-1;
     
     return found - priv->data;
@@ -483,12 +530,13 @@ size_t string_index_of(String* self, const char* needle) {
 
 size_t string_last_index_of(String* self, const char* needle) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t needle_len;
+    size_t i;
+    
     if (!needle) return (size_t)-1;
     
-    size_t needle_len = strlen(needle);
+    needle_len = strlen(needle);
     if (needle_len > priv->length) return (size_t)-1;
-    
-    size_t i;
     for (i = priv->length - needle_len + 1; i > 0; i--) {
         if (memcmp(priv->data + i - 1, needle, needle_len) == 0) {
             return i - 1;
@@ -500,9 +548,9 @@ size_t string_last_index_of(String* self, const char* needle) {
 
 size_t string_index_of_any(String* self, const char* chars) {
     StringPrivate* priv = (StringPrivate*)self;
-    if (!chars) return (size_t)-1;
-    
     size_t i;
+    
+    if (!chars) return (size_t)-1;
     for (i = 0; i < priv->length; i++) {
         if (strchr(chars, priv->data[i])) {
             return i;
@@ -514,11 +562,14 @@ size_t string_index_of_any(String* self, const char* chars) {
 
 size_t string_count(String* self, const char* needle) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t count = 0;
+    size_t needle_len;
+    char* pos;
+    
     if (!needle || !*needle) return 0;
     
-    size_t count = 0;
-    size_t needle_len = strlen(needle);
-    char* pos = priv->data;
+    needle_len = strlen(needle);
+    pos = priv->data;
     
     while ((pos = strstr(pos, needle)) != NULL) {
         count++;
@@ -534,14 +585,18 @@ size_t string_count(String* self, const char* needle) {
 
 String** string_split(String* self, const char* delimiter, size_t* out_count) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t count = 1;
+    size_t delim_len;
+    char* pos;
+    String** result;
+    
     if (!delimiter || !out_count) return NULL;
     
     *out_count = 0;
     
     /* Count splits */
-    size_t count = 1;
-    size_t delim_len = strlen(delimiter);
-    char* pos = priv->data;
+    delim_len = strlen(delimiter);
+    pos = priv->data;
     
     if (delim_len == 0) {
         /* Split each character */
@@ -554,7 +609,7 @@ String** string_split(String* self, const char* delimiter, size_t* out_count) {
     }
     
     /* Allocate array */
-    String** result = calloc(count, sizeof(String*));
+    result = calloc(count, sizeof(String*));
     if (!result) return NULL;
     
     /* Perform split */
@@ -572,19 +627,24 @@ String** string_split(String* self, const char* delimiter, size_t* out_count) {
         *out_count = priv->length;
     } else {
         /* Split by delimiter */
-        char* start = priv->data;
+        char* start;
         char* end;
         size_t idx = 0;
         
+        start = priv->data;
+        
         while ((end = strstr(start, delimiter)) != NULL) {
-            size_t part_len = end - start;
+            size_t part_len;
+            StringPrivate* part_priv;
+            
+            part_len = end - start;
             result[idx] = StringMakeWithCapacity(NULL, part_len + 1);
             if (!result[idx]) {
                 StringArray_Free(result, idx);
                 return NULL;
             }
             
-            StringPrivate* part_priv = (StringPrivate*)result[idx];
+            part_priv = (StringPrivate*)result[idx];
             memcpy(part_priv->data, start, part_len);
             part_priv->data[part_len] = '\0';
             part_priv->length = part_len;
@@ -608,13 +668,17 @@ String** string_split(String* self, const char* delimiter, size_t* out_count) {
 
 String** string_split_any(String* self, const char* chars, size_t* out_count) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t count = 1;
+    size_t i;
+    String** result;
+    char* start;
+    size_t idx = 0;
+    
     if (!chars || !out_count) return NULL;
     
     *out_count = 0;
     
     /* Count parts */
-    size_t count = 1;
-    size_t i;
     for (i = 0; i < priv->length; i++) {
         if (strchr(chars, priv->data[i])) {
             count++;
@@ -622,23 +686,25 @@ String** string_split_any(String* self, const char* chars, size_t* out_count) {
     }
     
     /* Allocate array */
-    String** result = calloc(count, sizeof(String*));
+    result = calloc(count, sizeof(String*));
     if (!result) return NULL;
     
     /* Perform split */
-    char* start = priv->data;
-    size_t idx = 0;
+    start = priv->data;
     
     for (i = 0; i < priv->length; i++) {
         if (strchr(chars, priv->data[i])) {
-            size_t part_len = (priv->data + i) - start;
+            size_t part_len;
+            StringPrivate* part_priv;
+            
+            part_len = (priv->data + i) - start;
             result[idx] = StringMakeWithCapacity(NULL, part_len + 1);
             if (!result[idx]) {
                 StringArray_Free(result, idx);
                 return NULL;
             }
             
-            StringPrivate* part_priv = (StringPrivate*)result[idx];
+            part_priv = (StringPrivate*)result[idx];
             memcpy(part_priv->data, start, part_len);
             part_priv->data[part_len] = '\0';
             part_priv->length = part_len;
@@ -665,11 +731,13 @@ String** string_split_lines(String* self, size_t* out_count) {
 
 String* string_join(String* self, String** strings, size_t count) {
     StringPrivate* priv = (StringPrivate*)self;
+    size_t total_len = 0;
+    size_t i;
+    String* result;
+    
     if (!strings || count == 0) return StringMake("");
     
     /* Calculate total length */
-    size_t total_len = 0;
-    size_t i;
     for (i = 0; i < count; i++) {
         if (strings[i]) {
             total_len += strings[i]->length();
@@ -680,7 +748,7 @@ String* string_join(String* self, String** strings, size_t count) {
     }
     
     /* Create result */
-    String* result = StringMakeWithCapacity(NULL, total_len + 1);
+    result = StringMakeWithCapacity(NULL, total_len + 1);
     if (!result) return NULL;
     
     /* Join strings */
@@ -708,10 +776,13 @@ int string_compare(String* self, const char* other) {
 
 int string_compare_ignore_case(String* self, const char* other) {
     StringPrivate* priv = (StringPrivate*)self;
+    const char* s1;
+    const char* s2;
+    
     if (!other) return 1;
     
-    const char* s1 = priv->data;
-    const char* s2 = other;
+    s1 = priv->data;
+    s2 = other;
     
     while (*s1 && *s2) {
         int c1 = tolower((unsigned char)*s1);
@@ -738,9 +809,9 @@ bool string_equals_ignore_case(String* self, const char* other) {
 
 bool string_is_integer(String* self) {
     StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return false;
-    
     size_t i = 0;
+    
+    if (priv->length == 0) return false;
     if (priv->data[0] == '-' || priv->data[0] == '+') {
         if (priv->length == 1) return false;
         i = 1;
@@ -1183,13 +1254,16 @@ void StringArray_Free(String** strings, size_t count) {
 }
 
 String* StringArray_Join(const char** strings, size_t count, const char* separator) {
+    size_t total_len = 0;
+    size_t sep_len;
+    size_t i;
+    String* result;
+    
     if (!strings || count == 0) return StringMake("");
     if (!separator) separator = "";
     
     /* Calculate total length */
-    size_t total_len = 0;
-    size_t sep_len = strlen(separator);
-    size_t i;
+    sep_len = strlen(separator);
     
     for (i = 0; i < count; i++) {
         if (strings[i]) {
@@ -1201,7 +1275,7 @@ String* StringArray_Join(const char** strings, size_t count, const char* separat
     }
     
     /* Create result */
-    String* result = StringMakeWithCapacity(NULL, total_len + 1);
+    result = StringMakeWithCapacity(NULL, total_len + 1);
     if (!result) return NULL;
     
     /* Join strings */
