@@ -91,6 +91,190 @@ unsigned char trampolines_validate(
 
 void trampoline_free(void *trampoline);
 
+/* ------------------------------------------------------------------------
+ * The following pre-processor defines, setup ways to help define trampoline
+ * function prototypes to be nested within structs.
+ * ------------------------------------------------------------------------ */
+
+#define TRNullary(functionName) void (*functionName)();
+
+#define TRUnary(returnType, functionName, parameterType) \
+  returnType (*functionName)(parameterType);
+
+#define TRDyadic(returnType, functionName, parameterOne, parameterTwo) \
+  returnType (*functionName)(parameterOne, parameterTwo);
+
+#define TRProperty(getter, setter, type) \
+  type (*getter)(); \
+  void (*setter)(type newValue);
+
+#define TRGetter(getter, type) type (*getter)();
+#define TRSetter(setter, type) void (*setter)(type newValue);
+
+/* ------------------------------------------------------------------------
+ * These pre-processor defines are to actually implement the simpler function
+ * variants one might need when working with trampoline enabled code. The
+ * following values assume the variable is defined on the public facing struct
+ * definition (public variants)
+ * ------------------------------------------------------------------------ */
+
+#define TRNullaryFn(return_type, function_name, context_type) \
+  return_type function_name(context_type* self)
+
+#define TRUnaryFn(\
+  return_type,\
+  function_name,\
+  context_type,\
+  variable_type,\
+  variable_name\
+) return_type function_name(context_type* self, variable_type variable_name)
+
+#define TRDyadicFn(\
+  return_type,\
+  function_name,\
+  context_type,\
+  variable1_type,\
+  variable1_name,\
+  variable2_type,\
+  variable2_name\
+) return_type function_name(\
+  context_type* self,\
+  variable1_type variable1_name,\
+  variable2_type variable2_name\
+)
+
+#define TRGetterFn(\
+  getter,\
+  context_type,\
+  variable_type,\
+  variable\
+) variable_type getter(context_type *self) { return self->variable; };
+
+#define TRSetterFn(\
+  setter,\
+  context_type,\
+  variable_type,\
+  variable_name\
+) void setter(context_type *self, variable_type val) { \
+  self->variable_name = val; \
+};
+
+#define TRStringSetterFn(\
+  setter,\
+  context_type,\
+  variable_name\
+) void setter(context_type *self, const char* val) { \
+  if (self->variable_name) { free(self->variable_name); } \
+  self->variable_name = calloc(1, sizeof(strlen(val) + 1)); \
+  if (self->variable_name) { strcpy(self->variable_name, val); } \
+  else { self->variable_name = NULL; } \
+};
+
+#define TRPropertyFn(\
+  getter,\
+  setter,\
+  context_type,\
+  variable_type,\
+  variable_name\
+) variable_type getter(context_type *self) { return self->variable; }; \
+  void setter(context_type *self, variable_type val) { \
+    self->variable_name = val; \
+  };
+
+#define TRStringPropertyFn(\
+  getter,\
+  setter,\
+  context_type,\
+  variable_name\
+) variable_type getter(context_type *self) { return self->variable; }; \
+  void setter(context_type *self, const char* val) { \
+    if (self->variable_name) { free(self->variable_name); } \
+    self->variable_name = calloc(1, sizeof(strlen(val) + 1)); \
+    if (self->variable_name) { strcpy(self->variable_name, val); } \
+    else { self->variable_name = NULL; } \
+  };
+
+/* ------------------------------------------------------------------------
+ * These pre-processor defines are to actually implement the simpler function
+ * variants one might need when working with trampoline enabled code. The
+ * following values assume the variable is defined on a private facing struct
+ * definition (private variants)
+ * ------------------------------------------------------------------------ */
+
+#define TRPrivateGetterFn(\
+  getter,\
+  context_type,\
+  private_type,\
+  variable_type,\
+  variable\
+) variable_type getter(context_type *self) {\
+  private_type* private = (private_type*)self; \
+  return private->variable; \
+};
+
+#define TRPrivateSetterFn(\
+  setter,\
+  context_type,\
+  private_type,\
+  variable_type,\
+  variable_name\
+) void setter(context_type *self, variable_type val) { \
+  private_type* private = (private_type*)self; \
+  private->variable_name = val; \
+};
+
+#define TRPrivateStringSetterFn(\
+  setter,\
+  context_type,\
+  private_type,\
+  variable_name\
+) void setter(context_type *self, const char* val) { \
+  private_type* private = (private_type*)self; \
+  if (private->variable_name) { free(private->variable_name); } \
+  private->variable_name = calloc(1, sizeof(strlen(val) + 1)); \
+  if (private->variable_name) { strcpy(private->variable_name, val); } \
+  else { private->variable_name = NULL; } \
+};
+
+#define TRPrivatePropertyFn(\
+  getter,\
+  setter,\
+  context_type,\
+  private_type,\
+  variable_type,\
+  variable_name\
+) variable_type getter(context_type *self) {\
+    private_type* private = (private_type*)self; \
+    return private->variable; \
+  }; \
+  void setter(context_type *self, variable_type val) { \
+    private_type* private = (private_type*)self; \
+    private->variable_name = val; \
+  };
+
+#define TRPrivateStringPropertyFn(\
+  getter,\
+  setter,\
+  context_type,\
+  private_type,\
+  variable_name\
+) variable_type getter(context_type *self) { \
+    private_type* private = (private_type*)self; \
+    return private->variable; \
+  }; \
+  void setter(context_type *self, const char* val) { \
+    private_type* private = (private_type*)self; \
+    if (private->variable_name) { free(private->variable_name); } \
+    private->variable_name = calloc(1, sizeof(strlen(val) + 1)); \
+    if (private->variable_name) { strcpy(private->variable_name, val); } \
+    else { private->variable_name = NULL; } \
+  };
+
+/* ------------------------------------------------------------------------
+ * These macros are deprecated and subject to removal once I get around to
+ * stripping it from the examples. Expect these to fail soon.
+ * ------------------------------------------------------------------------ */
+
 #define TRAMP_PUB2PRIVATE(public_variable, private_type) \
   ((private_type)public_variable)
 
