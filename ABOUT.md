@@ -131,8 +131,8 @@ Untested but should work:
 
 In flight work to support the folowing platforms:
  * arm32 (Rasperry Pi and 32-bit ARM)(ready to test)
- * i386 (32-bit Intel)(ready to test)
- * i386 (Windows specific 32-bit Intel)(ready to test)
+ * i386 (32-bit Intel)(tested - still doesn't work)
+ * i386 (Windows specific 32-bit Intel)(probably doesn't work)
  * x86_64 (Windows specific 64-bit Intel)(ready to test)
 
 ## Helpers
