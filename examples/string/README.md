@@ -79,7 +79,7 @@ The String struct provides a zero-cognitive-load API with over 50 member functio
 
 ```c
 #include "string.h"
-#include "string_impl.c"
+#include "string.c"
 
 int main(void) {
     /* Create a string - simple and intuitive */
@@ -163,7 +163,7 @@ The String implementation uses:
 ## Files
 
 - `string.h` - Public interface with comprehensive documentation
-- `string_impl.c` - Implementation of all string functions
+- `string.c` - Implementation of all string functions
 - `string_demo.c` - Simple C89-compliant demonstration
 - `string_example.c` - Comprehensive test suite
 - `simple_string_test.c` - Basic usage example

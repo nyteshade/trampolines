@@ -7,25 +7,7 @@
 #include <string.h>
 
 #include "network_response.h"
-
-typedef struct ResponseHeader {
-  char* key;
-  char* value;
-  struct ResponseHeader* next;
-} ResponseHeader;
-
-typedef struct NetworkResponse_ {
-  NetworkResponse public;
-  
-  int status_code;
-  char* status_message;
-  ResponseHeader* headers;
-  size_t header_count;
-  char** header_keys_cache;
-  char* body;
-  size_t body_length;
-  char* error;
-} NetworkResponse_;
+#include "network_response_private.h"
 
 TRAMP_GETTER_(networkresponse_statusCode, NetworkResponse, 
               NetworkResponse_, int, status_code);

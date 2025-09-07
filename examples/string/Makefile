@@ -26,7 +26,7 @@ ALL_TARGETS = $(TARGET) $(TARGET_C89) $(SIMPLE_TEST) $(PERF_TEST)
 # architecture-specific implementation based on the platform
 TRAMPOLINE_SRC = ../../trampoline.c
 TRAMPOLINE_HELPERS = ../../trampoline_helpers.c
-STRING_IMPL = string_impl.c
+STRING_IMPL = string.c
 EXAMPLE_SRC = string_example.c
 
 # Default target

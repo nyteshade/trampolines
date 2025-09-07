@@ -3,12 +3,12 @@
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -g
-INCLUDES = -I../.. -I.
+CFLAGS = -Wall -Wextra -O2 -g -lssl -lcrypto
+INCLUDES = -I../.. -I. -I/opt/local/include -L/opt/local/lib
 
 # Source files
 TRAMPOLINE_SRCS = ../../trampoline.c ../../trampoline_helpers.c
-EXAMPLE_SRCS = network_example.c
+EXAMPLE_SRCS = network_example.c network_request.c network_response.c
 
 # Output binary
 TARGET = network_test
@@ -18,8 +18,8 @@ all: $(TARGET)
 
 # Build the network test
 $(TARGET): $(EXAMPLE_SRCS) $(TRAMPOLINE_SRCS) \
-           network_request.h network_response.h \
-           network_request_impl.c network_response_impl.c
+           network_request.h network_response.h network_response_private.h \
+           network_request.c network_response.c
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(TARGET) \
 	      $(EXAMPLE_SRCS) $(TRAMPOLINE_SRCS)
 

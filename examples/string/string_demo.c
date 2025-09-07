@@ -4,7 +4,7 @@
  */
 
 #include "string.h"
-#include "string_impl.c"
+#include "string.c"
 #include <stdio.h>
 
 int main(void) {

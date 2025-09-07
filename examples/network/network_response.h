@@ -150,6 +150,22 @@ typedef struct NetworkResponse {
 } NetworkResponse;
 
 /**
+ * @brief Create an empty NetworkResponse instance
+ *
+ * This function creates a NetworkResponse object.
+ *
+ * @return A new NetworkResponse object
+ * @note The returned object must be freed with resp->free()
+ *
+ * @example
+ * @code
+ * NetworkResponse* resp = NetworkResponseMake();
+ * resp->free();
+ * @endcode
+ */
+NetworkResponse* NetworkResponseMake();
+
+/**
  * @brief Create a NetworkResponse for an error condition
  *
  * This function creates a NetworkResponse object that represents an error

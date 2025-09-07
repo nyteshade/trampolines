@@ -125,7 +125,6 @@ Tested working platforms are:
  * arm64 (MacOS M-series CPUs)
 
 Untested but should work:
- * ppc64 (G5 64-bit)
  * x86_64 Linux
  * arm64 (Non-apple *nix variants)
 
@@ -134,6 +133,7 @@ In flight work to support the folowing platforms:
  * i386 (32-bit Intel)(tested - still doesn't work)
  * i386 (Windows specific 32-bit Intel)(probably doesn't work)
  * x86_64 (Windows specific 64-bit Intel)(ready to test)
+ * ppc64 (G5 64-bit)
 
 ## Helpers
 

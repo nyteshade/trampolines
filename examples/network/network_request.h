@@ -17,6 +17,37 @@
 #include <stddef.h>
 
 /**
+ * @brief Structure to hold parsed URL components
+ * 
+ * Note: All string pointers reference the original URL string, so the
+ * original URL must remain valid while using this struct. Components
+ * may be NULL if not present in the URL.
+ */
+typedef struct {
+  char* scheme;
+  char* host;
+  char* port;
+  char* path;
+  char* query;
+  char* fragment;
+} url_t;
+
+/**
+ * @brief Parse a URL string into its components
+ * 
+ * Parses a URL of the format: scheme://host:port/path?query#fragment
+ * All components except scheme and host are optional.
+ * 
+ * @param url_string The URL string to parse (will be modified!)
+ * @param parsed_url Pointer to url_t struct to populate
+ * @return 0 on success, -1 on error
+ * 
+ * @warning This function modifies the input string by inserting null terminators.
+ *          Make a copy if you need to preserve the original.
+ */
+ int parse_url_t(char* url_string, url_t* parsed_url);
+
+/**
  * @enum HttpMethod
  * @brief HTTP methods supported by NetworkRequest
  */

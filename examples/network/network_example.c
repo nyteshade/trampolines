@@ -5,7 +5,6 @@
 
 #include "network_request.h"
 #include "network_response.h"
-#include "network_request_impl.c"
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -28,7 +27,7 @@ int main(int argc, char **argv) {
   request->setTimeout(10);
 
   printf("Sending request...\n");
-  NetworkResponse* response = request->send();
+  NetworkResponse* response = NULL; //request->send();
 
   if (response) {
     if (response->isSuccess()) {
@@ -65,8 +64,9 @@ int main(int argc, char **argv) {
 
   printf("\n--- POST Request Example ---\n");
 
+  if (0)
   {
-    NetworkRequest* post_request = NetworkRequestMake("http://httpbin.org/post", HTTP_POST);
+    NetworkRequest* post_request = NetworkRequestMake("https://httpbin.org/post", HTTP_POST);
     if (post_request) {
       NetworkResponse* post_response;
       
@@ -89,6 +89,46 @@ int main(int argc, char **argv) {
       post_request->free();
     }
   }
+  
+  printf("\n--- SSL POST Request Example ---\n");
+
+  {
+    const char* apiKey = "--enter your api key here--";    
+    NetworkRequest* post_request = NetworkRequestMake("https://api.anthropic.com/v1/messages", HTTP_POST);    
+    
+    if (post_request) {
+      NetworkResponse* post_response;
+      
+      post_request->setHeader("Content-Type", "application/json");
+      post_request->setHeader("x-api-key", apiKey);
+      post_request->setHeader("anthropic-version", "2023-06-01");      
+      
+      post_request->setBody(
+        "{"
+          "\"model\": \"claude-opus-4-1-20250805\","
+          "\"max_tokens\": 8192,"
+          "\"messages\": ["
+            " { \"role\": \"user\", \"content\": \"hello\" }"
+          "]"
+        "}"
+      );
+
+      printf("Sending POST request with body...\n");
+      post_response = post_request->send();
+
+      if (post_response) {
+        if (post_response->isSuccess()) {
+          printf("POST Success! Status: %d\n", post_response->statusCode());
+          printf("Response excerpt: %.200s...\n", post_response->body());
+        } else {
+          printf("POST failed: %s\n", post_response->error());
+        }
+        post_response->free();
+      }
+
+      post_request->free();
+    }
+  }  
 
   request->free();
 

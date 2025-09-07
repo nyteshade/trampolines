@@ -1,5 +1,5 @@
 /**
- * @file string_impl.c
+ * @file string.c
  * @brief Implementation of String with comprehensive string manipulation using trampolines
  */
 
