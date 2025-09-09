@@ -12,6 +12,7 @@
       };
 
    TIxx Trampoline Implementor
+   TI_xx Trampoline Implementor (Private Struct Overlap; see below)
      Implementors are helpers that define full functions to reduce boiler plate. In this
      case below, two functions are implemented. This macro is intended to be invoked in
      the header's matching .c file. The TIStringProperty macro creates a getter that
@@ -21,31 +22,45 @@
      occurs.
 
       TIStringProperty(peep_name, peep_setName, Person, _name);
+      TI_StringProperty(peep_name, peep_setName, Person, PrivatePerson, name);
 
    TAxx Trampoline Allocator
+   TA_xx Trampoline Private Allocator
      Allocators are used in a struct new/make function to actually create and track the
      trampoline functions and assign them to the struct being created. In addition to
      tracking the potentially numerous trampolines in a given struct, allocators will
      perform the necessary allocation checking for a failed trampoline creation.
 
       Person* PersonMake() {
-        Person* peep = calloc(1, sizeof(Person));
+        TAAllocate(Person);
+        // -> Person* public = calloc(1, sizeof(Person));
+        // -> TTTracker *tracker = trampoline_track(public);
 
-        if (peep) {
-          TAStringProperty(name, peep_name, setName, peep_setName, peep);
-          ...
+        TA_Allocate(Person, PrivatePerson);
+        // -> PrivatePerson* private = calloc(1, sizeof(PrivatePerson));
+        // -> Person* public = (Person*)private;
+        // -> TTTracker *tracker = trampoline_track(private);
+
+        if (public) {
+          TAStringProperty(name, peep_name, setName, peep_setName, public);
+          // -> peep->name = trampoline_create(peep_name, public);
+          // -> peep->setName = trampoline_create(peep_setName, public);
+        }
+
+        // or
+        if (private) {
+          TA_StringProperty(name, peep_name, setName, peep_setName, public, private);
+          // -> public->name = trampoline_create(peep_name, private);
+          // -> public->setName = trampoline_create(peep_setName, private);
         }
 
         ...
         return peep;
       }
 
-      turns TAStringProperty(...), roughly, into the following code:
-
-        peep->name = trampoline_create(peep_name, peep);
-        peep->setName = trampoline_create(peep_setName, peep);
 
    TFxx Trampoline Function
+   TF_xx Private Trampoline Functions (see below)
      Trampoline Functions are helper functions where the types and return values,
      are handled by the macro but the body is defined by the programmer. When defining
      unary, dyadic or other multi-parameter functions, it can be crucial to for the
@@ -62,10 +77,44 @@
         // Same implementation as above
       }
 
-     Note the pointer to *self? This is the magic of trampoline functions. You declare
-     the function pointer without the context/this pointer in the struct, but when the
-     function is executed, the instance in question that was constructed at the time
-     the trampoline was created is always received as the first parameter.
+     Note the pointer to *self? This is the magic of trampoline functions. You
+     declare the function pointer without the context/this pointer in the
+     struct, but when the function is executed, the instance in question that
+     was constructed at the time the trampoline was created is always received
+     as the first parameter.
+
+     Private Trampoline Functions have an underscore in the macro name. This
+     allows some obfuscation in memory of where private variables are stored.
+     So given the following code, macro variants exist to reduce boiler plate
+     when the public and private structs overlap in memory.
+
+     Generally the pattern here is to create a private variant of the struct
+     when the call to create the public one is requested. Since these overlap
+     and share the same memory, an ability to
+
+      // In public header
+      struct Person {
+        TDUnary(void, processData, void*);
+      };
+
+      struct Person* PersonMake();
+
+      // In private implementation file (.c)
+      struct PrivatePerson {
+        struct Person person;
+
+        void* data;
+      };
+
+      TTF_Unary(void, per_processData, Person, PrivatePerson, void*, data)
+        // Equates to
+        //   void per_processData(Person* self, void* data) {
+        //     PrivatePerson* private = (PrivatePerson*)self;
+
+        // Implict scope is the `self`, `data` and `private`
+        // Also note that in using the macro, I did not provide an opening brace
+      }
+
 
    TTxx Trampoline Type
      These are types that help make the trampoline ecosystem work. In these cases, they
@@ -96,15 +145,15 @@ typedef struct TTAllocNode {
   void* trampoline;
 } TTAllocNode;
 
-typedef struct TTStructNode {
-  struct TTStructNode* next;
+typedef struct TTTracker {
+  struct TTTracker* next;
   TTAllocNode* first;
   void* context;
 
   unsigned int failures;
   unsigned int count;
   unsigned long id;
-} TTStructNode;
+} TTTracker;
 
 // TDxx Trampoline Declarator
 
@@ -133,10 +182,26 @@ typedef struct TTStructNode {
 #define TIGetter(getter, context, type, variable_name) \
   type (*getter)(context* self) { return self->variable_name; };
 
+#define TI_Getter(getter, context, private_context, variable_name) \
+  type (*getter)(context* self) {\
+    private_context* private = (private_context*)self; \
+    return private->variable_name; \
+  }
+
+
+
 #define TISetter(setter, context, type, variable_name) \
   void (*setter)(context* self, type newValue) { \
     self->variable_name = newValue; \
   };
+
+#define TI_Setter(setter, context, private_context, type, variable_name) \
+  void (*setter)(context* self, type newValue) { \
+    private_context* private = (private_context*)self; \
+    private->variable_name = newValue; \
+  };
+
+
 
 #define TIStringSetter(setter, context, variable_name) \
   void (*setter)(context* self, const char* newValue) { \
@@ -150,6 +215,23 @@ typedef struct TTStructNode {
     \
     return self->variable_name; \
   };
+
+#define TI_StringSetter(setter, context, private_context, variable_name) \
+  void (*setter)(context* self, const char* newValue) { \
+    private_context* private = (private_context*)self; \
+    \
+    if (private->variable_name) \
+      free(private->variable_name); \
+    \
+    private->variable_name = calloc(1, strlen(newValue) + 1); \
+    \
+    if (private->variable_name) \
+      strcpy(private->variable_name, newValue); \
+    \
+    return private->variable_name; \
+  };
+
+
 
 #define TIProperty(getter, setter, context, type, variable_name) \
   type (*getter)(context* self) { return self->variable_name; } \
@@ -172,6 +254,15 @@ typedef struct TTStructNode {
   };
 
 // TAxx Trampoline Allocator
+
+#define TAAllocate(public_struct) \
+  public_struct* public = calloc(1, sizeof(public_struct)); \
+  TTTracker *tracker = trampoline_track(public);
+
+#define TA_Allocate(public_struct, private_struct) \
+  private_struct* private = calloc(1, sizeof(private_struct)); \
+  public_struct* public = (public_struct*)private; \
+  TTTracker *tracker = trampoline_track(private_struct);
 
 // TFxx Trampoline Function
 
