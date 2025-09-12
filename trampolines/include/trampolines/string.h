@@ -13,7 +13,7 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <trampoline.h>
+#include <trampoline.h>  /* Expects trampoline.h in system includes */
 #include <stddef.h>
 
 /* C89 compatibility for bool */

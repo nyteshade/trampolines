@@ -3,8 +3,8 @@
  * @brief Performance testing for String with trampolines
  */
 
-#include "string.h"
-#include "string.c"
+#include <trampolines/string.h>
+
 #include <stdio.h>
 #include <time.h>
 

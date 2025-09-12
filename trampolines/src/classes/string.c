@@ -3,8 +3,8 @@
  * @brief Implementation of String with comprehensive string manipulation using trampolines
  */
 
-#include "string.h"
-#include "../../trampoline.h"
+#include <trampolines/string.h>
+#include <trampoline.h>  /* Expects trampoline.h in system includes */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

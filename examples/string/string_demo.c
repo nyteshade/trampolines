@@ -1,10 +1,9 @@
 /**
  * @file string_demo.c
- * @brief C89-compliant demonstration of String with trampoline member functions
+ * @brief Demonstration of String class from libtrampolines
  */
 
-#include "string.h"
-#include "string.c"
+#include <trampolines/string.h>
 #include <stdio.h>
 
 int main(void) {

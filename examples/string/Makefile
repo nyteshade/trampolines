@@ -1,13 +1,13 @@
 # Makefile for String Trampoline Example
-# Demonstrates comprehensive string manipulation with member functions
+# Uses the libtrampolines library
 
 # Compiler and flags
 CC = cc
-# Default flags - no strict C89 to support all architectures
-CFLAGS = -Wall -Wextra -g
-# Strict C89 flags for testing compatibility
+CFLAGS = -Wall -Wextra -O2 -g
 CFLAGS_C89 = -Wall -Wextra -std=c89 -pedantic -g
-LDFLAGS = 
+INCLUDES = -I../../trampolines/include -I../..
+LDFLAGS = -L../../lib
+LIBS = -ltrampolines -ltrampoline
 
 # Platform detection
 UNAME_S := $(shell uname -s)
@@ -21,32 +21,28 @@ PERF_TEST = string_performance
 EXAMPLE = string_example
 ALL_TARGETS = $(TARGET) $(TARGET_C89) $(SIMPLE_TEST) $(PERF_TEST)
 
-# Source files
-# Use the umbrella trampoline.c which automatically includes the correct
-# architecture-specific implementation based on the platform
-TRAMPOLINE_SRC = ../../trampoline.c
-TRAMPOLINE_HELPERS = ../../trampoline_helpers.c
-STRING_IMPL = string.c
-EXAMPLE_SRC = string_example.c
-
 # Default target
 all: $(ALL_TARGETS)
 
 # Main demo program
-$(TARGET): string_demo.c string.h $(STRING_IMPL) $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS)
-	$(CC) $(CFLAGS) -o $@ string_demo.c $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS) $(LDFLAGS)
+$(TARGET): string_demo.c
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS) $(LIBS)
 
-# C89-compliant demo (with portable printf format specifiers)
-$(TARGET_C89): string_demo_c89.c string.h $(STRING_IMPL) $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS)
-	$(CC) $(CFLAGS) -o $@ string_demo_c89.c $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS) $(LDFLAGS)
+# C89-compliant demo
+$(TARGET_C89): string_demo_c89.c
+	$(CC) $(CFLAGS_C89) $(INCLUDES) -o $@ $< $(LDFLAGS) $(LIBS)
 
 # Simple test program
-$(SIMPLE_TEST): simple_string_test.c string.h $(STRING_IMPL) $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS)
-	$(CC) $(CFLAGS) -o $@ simple_string_test.c $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS) $(LDFLAGS)
+$(SIMPLE_TEST): simple_string_test.c
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS) $(LIBS)
 
 # Performance test program
-$(PERF_TEST): string_performance.c string.h $(STRING_IMPL) $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS)
-	$(CC) $(CFLAGS) -O2 -o $@ string_performance.c $(TRAMPOLINE_SRC) $(TRAMPOLINE_HELPERS) $(LDFLAGS)
+$(PERF_TEST): string_performance.c
+	$(CC) $(CFLAGS) -O2 $(INCLUDES) -o $@ $< $(LDFLAGS) $(LIBS)
+
+# String example program
+$(EXAMPLE): string_example.c
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS) $(LIBS)
 
 # Run the main example
 run: $(TARGET)
