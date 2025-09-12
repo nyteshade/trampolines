@@ -140,6 +140,8 @@
   xxHexadic         -> a trampoline that has a defined return and six parameters
  */
 
+ // TTxx Trampoline Type
+
 typedef struct TTAllocNode {
   struct TTAllocNode* next;
   void* trampoline;
@@ -155,6 +157,8 @@ typedef struct TTTracker {
   unsigned long id;
 } TTTracker;
 
+
+
 // TDxx Trampoline Declarator
 
 #define TDGetter(getter, type) \
@@ -163,11 +167,15 @@ typedef struct TTTracker {
 #define TDStringGetter(getter) \
   const char* (*getter)(void);
 
+
+
 #define TDSetter(setter, type) \
   void (*setter)(type);
 
 #define TDStringSetter(setter) \
   void (*setter)(const char*);
+
+
 
 #define TDProperty(getter, setter, type) \
   type (*getter)(void); \
@@ -176,6 +184,8 @@ typedef struct TTTracker {
 #define TDStringProperty(getter, setter) \
   const char* (*getter)(void); \
   void (*setter)(const char*);
+
+
 
 // TIxx Trampoline Implementor
 
@@ -253,6 +263,8 @@ typedef struct TTTracker {
     return self->variable_name; \
   };
 
+
+
 // TAxx Trampoline Allocator
 
 #define TAAllocate(public_struct) \
@@ -264,6 +276,135 @@ typedef struct TTTracker {
   public_struct* public = (public_struct*)private; \
   TTTracker *tracker = trampoline_track(private_struct);
 
+
+
 // TFxx Trampoline Function
 
-// TTxx Trampoline Type
+#define TFNullary(nullary) \
+  void nullary(void)
+
+
+
+#define TFUnary(\
+  return_type, \
+  unary, \
+  context_type, \
+  variable_type, \
+  variable_name \
+) \
+  return_type unary(context_type* self, variable_type variable_name)
+
+
+
+#define TFDyadic(\
+  return_type, \
+  dyadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name \
+) \
+  return_type tyadic( \
+    context_type* self, \
+    variable1_type variable1_name, \
+    variable2_type variable2_name \
+  )
+
+
+
+#define TFTriadic(\
+  return_type, \
+  triadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name \
+) \
+  return_type triadic( \
+    context_type* self, \
+    variable1_type variable1_name, \
+    variable2_type variable2_name, \
+    variable3_type variable3_name \
+  )
+
+
+
+#define TFTetradic(\
+  return_type, \
+  tetradic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name \
+) \
+  return_type tetradic( \
+    context_type* self, \
+    variable1_type variable1_name, \
+    variable2_type variable2_name, \
+    variable3_type variable3_name, \
+    variable4_type variable4_name \
+  )
+
+
+
+  #define TFPentadic(\
+    return_type, \
+    pentadic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name, \
+    variable5_type, \
+    variable5_name \
+  ) \
+    return_type pentadic( \
+      context_type* self, \
+      variable1_type variable1_name, \
+      variable2_type variable2_name, \
+      variable3_type variable3_name, \
+      variable4_type variable4_name, \
+      variable5_type variable5_name \
+    )
+
+
+
+    #define TFHexadic(\
+      return_type, \
+      hexadic, \
+      context_type, \
+      variable1_type, \
+      variable1_name, \
+      variable2_type, \
+      variable2_name, \
+      variable3_type, \
+      variable3_name, \
+      variable4_type, \
+      variable4_name, \
+      variable5_type, \
+      variable5_name, \
+      variable6_type, \
+      variable6_name \
+    ) \
+      return_type hexadic( \
+        context_type* self, \
+        variable1_type variable1_name, \
+        variable2_type variable2_name, \
+        variable3_type variable3_name, \
+        variable4_type variable4_name, \
+        variable5_type variable5_name, \
+        variable6_type variable6_name \
+      )

@@ -4,6 +4,7 @@
  */
 
 #include "string.h"
+#include "../../trampoline.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -66,67 +67,59 @@ static bool char_is_whitespace(char c) {
 }
 
 /* ======================================================================== */
-/* Core String Access Functions                                             */
+/* Core String Access Functions (using new TF_ macros)                      */
 /* ======================================================================== */
 
-const char* string_c_str(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return priv->data ? priv->data : "";
+static TF_Getter(string_c_str, String, StringPrivate, const char*)
+    return private->data ? private->data : "";
 }
 
-size_t string_length(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return priv->length;
+static TF_Getter(string_length, String, StringPrivate, size_t)
+    return private->length;
 }
 
-size_t string_capacity(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return priv->capacity;
+static TF_Getter(string_capacity, String, StringPrivate, size_t)
+    return private->capacity;
 }
 
-bool string_is_empty(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return priv->length == 0;
+static TF_Getter(string_is_empty, String, StringPrivate, bool)
+    return private->length == 0;
 }
 
-char string_char_at(String* self, size_t index) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (index >= priv->length) return '\0';
-    return priv->data[index];
+static TF_Unary(char, string_char_at, String, StringPrivate, size_t, index)
+    if (index >= private->length) return '\0';
+    return private->data[index];
 }
 
 /* ======================================================================== */
 /* String Modification Functions                                            */
 /* ======================================================================== */
 
-bool string_append(String* self, const char* str) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_append, String, StringPrivate, const char*, str)
     size_t add_len;
     size_t new_len;
     
     if (!str || !*str) return true;
     
     add_len = strlen(str);
-    new_len = priv->length + add_len;
+    new_len = private->length + add_len;
     
-    if (!string_ensure_capacity(priv, new_len + 1)) return false;
+    if (!string_ensure_capacity(private, new_len + 1)) return false;
     
-    memcpy(priv->data + priv->length, str, add_len + 1);
-    priv->length = new_len;
+    memcpy(private->data + private->length, str, add_len + 1);
+    private->length = new_len;
     return true;
 }
 
-bool string_append_char(String* self, char ch) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_append_char, String, StringPrivate, char, ch)
+    if (!string_ensure_capacity(private, private->length + 2)) return false;
     
-    if (!string_ensure_capacity(priv, priv->length + 2)) return false;
-    
-    priv->data[priv->length++] = ch;
-    priv->data[priv->length] = '\0';
+    private->data[private->length++] = ch;
+    private->data[private->length] = '\0';
     return true;
 }
 
-bool string_append_format(String* self, const char* format, ...) {
+static bool string_append_format(String* self, const char* format, ...) {
     StringPrivate* priv = (StringPrivate*)self;
     va_list args;
     int required;
@@ -157,70 +150,71 @@ bool string_append_format(String* self, const char* format, ...) {
     return true;
 }
 
-bool string_prepend(String* self, const char* str) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_prepend, String, StringPrivate, const char*, str)
     size_t add_len;
     size_t new_len;
     
     if (!str || !*str) return true;
     
     add_len = strlen(str);
-    new_len = priv->length + add_len;
+    new_len = private->length + add_len;
     
-    if (!string_ensure_capacity(priv, new_len + 1)) return false;
+    if (!string_ensure_capacity(private, new_len + 1)) return false;
     
     /* Move existing content forward */
-    memmove(priv->data + add_len, priv->data, priv->length + 1);
+    memmove(private->data + add_len, private->data, private->length + 1);
     /* Copy new content to beginning */
-    memcpy(priv->data, str, add_len);
+    memcpy(private->data, str, add_len);
     
-    priv->length = new_len;
+    private->length = new_len;
     return true;
 }
 
-bool string_insert(String* self, size_t index, const char* str) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Dyadic(bool, string_insert, String, StringPrivate, size_t, index, const char*, str)
     size_t add_len;
     size_t new_len;
     
     if (!str || !*str) return true;
-    if (index > priv->length) return false;
+    if (index > private->length) return false;
     
     if (index == 0) return string_prepend(self, str);
-    if (index == priv->length) return string_append(self, str);
+    if (index == private->length) return string_append(self, str);
     
     add_len = strlen(str);
-    new_len = priv->length + add_len;
+    new_len = private->length + add_len;
     
-    if (!string_ensure_capacity(priv, new_len + 1)) return false;
+    if (!string_ensure_capacity(private, new_len + 1)) return false;
     
     /* Move tail forward */
-    memmove(priv->data + index + add_len, 
-            priv->data + index, 
-            priv->length - index + 1);
-    /* Insert new content */
-    memcpy(priv->data + index, str, add_len);
+    memmove(private->data + index + add_len, 
+            private->data + index, 
+            private->length - index + 1);
     
-    priv->length = new_len;
+    /* Insert new content */
+    memcpy(private->data + index, str, add_len);
+    
+    private->length = new_len;
     return true;
 }
 
-size_t string_replace(String* self, const char* find, const char* replace) {
-    StringPrivate* priv = (StringPrivate*)self;
-    size_t count = 0;
+static TF_Dyadic(size_t, string_replace, String, StringPrivate, const char*, find, const char*, replace)
+    char* pos;
     size_t find_len;
     size_t replace_len;
-    size_t new_len;
-    char* pos;
+    size_t count = 0;
+    char* temp;
+    size_t temp_len;
+    size_t temp_capacity;
+    char* current;
     
     if (!find || !*find) return 0;
     if (!replace) replace = "";
     
     find_len = strlen(find);
     replace_len = strlen(replace);
-    pos = priv->data;
     
     /* Count occurrences first */
+    pos = private->data;
     while ((pos = strstr(pos, find)) != NULL) {
         count++;
         pos += find_len;
@@ -229,237 +223,210 @@ size_t string_replace(String* self, const char* find, const char* replace) {
     if (count == 0) return 0;
     
     /* Calculate new length */
-    new_len = priv->length + count * (replace_len - find_len);
+    temp_len = private->length + count * (replace_len - find_len);
+    temp_capacity = temp_len + 1;
     
-    if (replace_len > find_len) {
-        /* Need more space */
-        if (!string_ensure_capacity(priv, new_len + 1)) return 0;
-    }
+    /* Allocate temporary buffer */
+    temp = malloc(temp_capacity);
+    if (!temp) return 0;
     
     /* Perform replacements */
-    if (replace_len == find_len) {
-        /* Same size - replace in place */
-        pos = priv->data;
-        while ((pos = strstr(pos, find)) != NULL) {
-            memcpy(pos, replace, replace_len);
-            pos += replace_len;
-        }
-    } else {
-        /* Different size - need to rebuild string */
-        char* new_data;
-        char* src;
-        char* dst;
-        char* found;
+    current = private->data;
+    temp_len = 0;
+    
+    while ((pos = strstr(current, find)) != NULL) {
+        size_t segment_len = pos - current;
         
-        new_data = malloc(new_len + 1);
-        if (!new_data) return 0;
+        /* Copy segment before match */
+        memcpy(temp + temp_len, current, segment_len);
+        temp_len += segment_len;
         
-        src = priv->data;
-        dst = new_data;
+        /* Copy replacement */
+        memcpy(temp + temp_len, replace, replace_len);
+        temp_len += replace_len;
         
-        while ((found = strstr(src, find)) != NULL) {
-            size_t prefix_len = found - src;
-            memcpy(dst, src, prefix_len);
-            dst += prefix_len;
-            memcpy(dst, replace, replace_len);
-            dst += replace_len;
-            src = found + find_len;
-        }
-        strcpy(dst, src);
-        
-        free(priv->data);
-        priv->data = new_data;
-        priv->capacity = new_len + 1;
+        /* Move past the find string */
+        current = pos + find_len;
     }
     
-    priv->length = new_len;
+    /* Copy remaining part */
+    strcpy(temp + temp_len, current);
+    
+    /* Replace the data */
+    free(private->data);
+    private->data = temp;
+    private->length = strlen(temp);
+    private->capacity = temp_capacity;
+    
     return count;
 }
 
-bool string_replace_first(String* self, const char* find, const char* replace) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Dyadic(bool, string_replace_first, String, StringPrivate, const char*, find, const char*, replace)
     char* pos;
     size_t find_len;
     size_t replace_len;
-    size_t prefix_len;
-    size_t suffix_start;
     size_t new_len;
+    char* new_data;
     
     if (!find || !*find) return false;
     if (!replace) replace = "";
     
-    pos = strstr(priv->data, find);
+    pos = strstr(private->data, find);
     if (!pos) return false;
     
     find_len = strlen(find);
     replace_len = strlen(replace);
-    prefix_len = pos - priv->data;
-    suffix_start = prefix_len + find_len;
-    new_len = priv->length - find_len + replace_len;
+    new_len = private->length - find_len + replace_len;
     
-    if (replace_len > find_len) {
-        if (!string_ensure_capacity(priv, new_len + 1)) return false;
+    if (new_len + 1 > private->capacity) {
+        if (!string_ensure_capacity(private, new_len + 1)) return false;
     }
     
+    /* Move tail to make room */
     if (replace_len != find_len) {
-        /* Move tail to new position */
-        memmove(priv->data + prefix_len + replace_len,
-                priv->data + suffix_start,
-                priv->length - suffix_start + 1);
+        memmove(pos + replace_len, pos + find_len, 
+                strlen(pos + find_len) + 1);
     }
     
     /* Insert replacement */
-    memcpy(priv->data + prefix_len, replace, replace_len);
-    priv->length = new_len;
+    memcpy(pos, replace, replace_len);
+    private->length = new_len;
     
     return true;
 }
 
-void string_clear(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->data) {
-        priv->data[0] = '\0';
-        priv->length = 0;
+static TF_Nullary(string_clear, String, StringPrivate)
+    if (private->data) {
+        private->data[0] = '\0';
+        private->length = 0;
     }
 }
 
-bool string_set(String* self, const char* str) {
-    StringPrivate* priv = (StringPrivate*)self;
-    string_clear(self);
-    return string_append(self, str);
+static TF_Unary(bool, string_set, String, StringPrivate, const char*, str)
+    size_t new_len;
+    
+    if (!str) str = "";
+    new_len = strlen(str);
+    
+    if (!string_ensure_capacity(private, new_len + 1)) return false;
+    
+    memcpy(private->data, str, new_len + 1);
+    private->length = new_len;
+    return true;
 }
 
-void string_reverse(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    char* start;
-    char* end;
+static TF_Nullary(string_reverse, String, StringPrivate)
+    size_t i;
+    size_t j;
     char temp;
     
-    if (priv->length <= 1) return;
+    if (private->length <= 1) return;
     
-    start = priv->data;
-    end = priv->data + priv->length - 1;
-    
-    while (start < end) {
-        temp = *start;
-        *start = *end;
-        *end = temp;
-        start++;
-        end--;
+    for (i = 0, j = private->length - 1; i < j; i++, j--) {
+        temp = private->data[i];
+        private->data[i] = private->data[j];
+        private->data[j] = temp;
     }
 }
 
-void string_to_upper_case_in_place(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Nullary(string_to_upper_case_in_place, String, StringPrivate)
     size_t i;
-    for (i = 0; i < priv->length; i++) {
-        priv->data[i] = toupper((unsigned char)priv->data[i]);
+    for (i = 0; i < private->length; i++) {
+        private->data[i] = toupper((unsigned char)private->data[i]);
     }
 }
 
-void string_to_lower_case_in_place(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Nullary(string_to_lower_case_in_place, String, StringPrivate)
     size_t i;
-    for (i = 0; i < priv->length; i++) {
-        priv->data[i] = tolower((unsigned char)priv->data[i]);
+    for (i = 0; i < private->length; i++) {
+        private->data[i] = tolower((unsigned char)private->data[i]);
     }
 }
 
 /* ======================================================================== */
-/* Forward Declarations                                                     */
+/* String Creation Functions (Returns New String)                           */
 /* ======================================================================== */
 
-String* string_clone(String* self);
+String* StringMake(const char* str);
+String* StringMakeWithCapacity(const char* str, size_t capacity);
 
-/* ======================================================================== */
-/* String Creation Functions                                                */
-/* ======================================================================== */
-
-String* string_substring(String* self, size_t start, size_t length) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Dyadic(String*, string_substring, String, StringPrivate, size_t, start, size_t, length)
     String* result;
     StringPrivate* res_priv;
     
-    if (start >= priv->length) return StringMake("");
+    if (start >= private->length) return StringMake("");
     
-    if (length == 0 || start + length > priv->length) {
-        length = priv->length - start;
+    if (length == 0 || start + length > private->length) {
+        length = private->length - start;
     }
     
     result = StringMakeWithCapacity(NULL, length + 1);
     if (!result) return NULL;
     
     res_priv = (StringPrivate*)result;
-    memcpy(res_priv->data, priv->data + start, length);
+    memcpy(res_priv->data, private->data + start, length);
     res_priv->data[length] = '\0';
     res_priv->length = length;
     
     return result;
 }
 
-String* string_trim(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Getter(string_trim, String, StringPrivate, String*)
     size_t start = 0;
-    size_t end = priv->length;
+    size_t end = private->length;
     
     /* Find first non-whitespace */
-    while (start < priv->length && char_is_whitespace(priv->data[start])) {
+    while (start < private->length && char_is_whitespace(private->data[start])) {
         start++;
     }
     
     /* Find last non-whitespace */
-    while (end > start && char_is_whitespace(priv->data[end - 1])) {
+    while (end > start && char_is_whitespace(private->data[end - 1])) {
         end--;
     }
     
     return string_substring(self, start, end - start);
 }
 
-String* string_trim_left(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    
+static TF_Getter(string_trim_left, String, StringPrivate, String*)
     size_t start = 0;
-    while (start < priv->length && char_is_whitespace(priv->data[start])) {
+    while (start < private->length && char_is_whitespace(private->data[start])) {
         start++;
     }
     
     return string_substring(self, start, 0);
 }
 
-String* string_trim_right(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    
-    size_t end = priv->length;
-    while (end > 0 && char_is_whitespace(priv->data[end - 1])) {
+static TF_Getter(string_trim_right, String, StringPrivate, String*)
+    size_t end = private->length;
+    while (end > 0 && char_is_whitespace(private->data[end - 1])) {
         end--;
     }
     
     return string_substring(self, 0, end);
 }
 
-String* string_to_upper_case(String* self) {
-    String* result = string_clone(self);
+static TF_Getter(string_to_upper_case, String, StringPrivate, String*)
+    String* result = StringMake(private->data);
     if (result) {
-        string_to_upper_case_in_place(result);
+        result->toUpperCaseInPlace();
     }
     return result;
 }
 
-String* string_to_lower_case(String* self) {
-    String* result = string_clone(self);
+static TF_Getter(string_to_lower_case, String, StringPrivate, String*)
+    String* result = StringMake(private->data);
     if (result) {
-        string_to_lower_case_in_place(result);
+        result->toLowerCaseInPlace();
     }
     return result;
 }
 
-String* string_clone(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return StringMake(priv->data);
+static TF_Getter(string_clone, String, StringPrivate, String*)
+    return StringMake(private->data);
 }
 
-String* string_repeat(String* self, size_t count) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(String*, string_repeat, String, StringPrivate, size_t, count)
     size_t new_len;
     String* result;
     StringPrivate* res_priv;
@@ -468,13 +435,13 @@ String* string_repeat(String* self, size_t count) {
     if (count == 0) return StringMake("");
     if (count == 1) return string_clone(self);
     
-    new_len = priv->length * count;
+    new_len = private->length * count;
     result = StringMakeWithCapacity(NULL, new_len + 1);
     if (!result) return NULL;
     
     res_priv = (StringPrivate*)result;
     for (i = 0; i < count; i++) {
-        memcpy(res_priv->data + (i * priv->length), priv->data, priv->length);
+        memcpy(res_priv->data + (i * private->length), private->data, private->length);
     }
     res_priv->data[new_len] = '\0';
     res_priv->length = new_len;
@@ -486,73 +453,71 @@ String* string_repeat(String* self, size_t count) {
 /* String Searching Functions                                               */
 /* ======================================================================== */
 
-bool string_contains(String* self, const char* needle) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_contains, String, StringPrivate, const char*, needle)
     if (!needle) return false;
-    return strstr(priv->data, needle) != NULL;
+    return strstr(private->data, needle) != NULL;
 }
 
-bool string_starts_with(String* self, const char* prefix) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_starts_with, String, StringPrivate, const char*, prefix)
     size_t prefix_len;
     
     if (!prefix) return false;
     
     prefix_len = strlen(prefix);
-    if (prefix_len > priv->length) return false;
+    if (prefix_len > private->length) return false;
     
-    return memcmp(priv->data, prefix, prefix_len) == 0;
+    return memcmp(private->data, prefix, prefix_len) == 0;
 }
 
-bool string_ends_with(String* self, const char* suffix) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(bool, string_ends_with, String, StringPrivate, const char*, suffix)
     size_t suffix_len;
     
     if (!suffix) return false;
     
     suffix_len = strlen(suffix);
-    if (suffix_len > priv->length) return false;
+    if (suffix_len > private->length) return false;
     
-    return memcmp(priv->data + priv->length - suffix_len, suffix, suffix_len) == 0;
+    return memcmp(private->data + private->length - suffix_len, suffix, suffix_len) == 0;
 }
 
-size_t string_index_of(String* self, const char* needle) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(size_t, string_index_of, String, StringPrivate, const char*, needle)
     char* found;
     
     if (!needle) return (size_t)-1;
     
-    found = strstr(priv->data, needle);
+    found = strstr(private->data, needle);
     if (!found) return (size_t)-1;
     
-    return found - priv->data;
+    return found - private->data;
 }
 
-size_t string_last_index_of(String* self, const char* needle) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(size_t, string_last_index_of, String, StringPrivate, const char*, needle)
     size_t needle_len;
-    size_t i;
+    char* pos;
+    char* last = NULL;
     
     if (!needle) return (size_t)-1;
     
     needle_len = strlen(needle);
-    if (needle_len > priv->length) return (size_t)-1;
-    for (i = priv->length - needle_len + 1; i > 0; i--) {
-        if (memcmp(priv->data + i - 1, needle, needle_len) == 0) {
-            return i - 1;
-        }
+    if (needle_len > private->length) return (size_t)-1;
+    
+    pos = private->data;
+    while ((pos = strstr(pos, needle)) != NULL) {
+        last = pos;
+        pos++;
     }
     
-    return (size_t)-1;
+    if (!last) return (size_t)-1;
+    return last - private->data;
 }
 
-size_t string_index_of_any(String* self, const char* chars) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(size_t, string_index_of_any, String, StringPrivate, const char*, chars)
     size_t i;
     
     if (!chars) return (size_t)-1;
-    for (i = 0; i < priv->length; i++) {
-        if (strchr(chars, priv->data[i])) {
+    
+    for (i = 0; i < private->length; i++) {
+        if (strchr(chars, private->data[i])) {
             return i;
         }
     }
@@ -560,8 +525,7 @@ size_t string_index_of_any(String* self, const char* chars) {
     return (size_t)-1;
 }
 
-size_t string_count(String* self, const char* needle) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(size_t, string_count, String, StringPrivate, const char*, needle)
     size_t count = 0;
     size_t needle_len;
     char* pos;
@@ -569,7 +533,7 @@ size_t string_count(String* self, const char* needle) {
     if (!needle || !*needle) return 0;
     
     needle_len = strlen(needle);
-    pos = priv->data;
+    pos = private->data;
     
     while ((pos = strstr(pos, needle)) != NULL) {
         count++;
@@ -580,58 +544,56 @@ size_t string_count(String* self, const char* needle) {
 }
 
 /* ======================================================================== */
-/* String Splitting Functions                                               */
+/* String Splitting and Joining                                             */
 /* ======================================================================== */
 
-String** string_split(String* self, const char* delimiter, size_t* out_count) {
-    StringPrivate* priv = (StringPrivate*)self;
-    size_t count = 1;
+static TF_Dyadic(String**, string_split, String, StringPrivate, const char*, delimiter, size_t*, out_count)
     size_t delim_len;
+    size_t count = 1;
     char* pos;
     String** result;
+    size_t i;
     
     if (!delimiter || !out_count) return NULL;
     
     *out_count = 0;
-    
-    /* Count splits */
     delim_len = strlen(delimiter);
-    pos = priv->data;
     
     if (delim_len == 0) {
-        /* Split each character */
-        count = priv->length;
-    } else {
-        while ((pos = strstr(pos, delimiter)) != NULL) {
-            count++;
-            pos += delim_len;
-        }
-    }
-    
-    /* Allocate array */
-    result = calloc(count, sizeof(String*));
-    if (!result) return NULL;
-    
-    /* Perform split */
-    if (delim_len == 0) {
-        /* Split each character */
-        size_t i;
-        for (i = 0; i < priv->length; i++) {
+        /* Split into individual characters */
+        count = private->length;
+        if (count == 0) return NULL;
+        
+        result = calloc(count, sizeof(String*));
+        if (!result) return NULL;
+        
+        for (i = 0; i < private->length; i++) {
             result[i] = StringMakeWithCapacity(NULL, 2);
             if (!result[i]) {
                 StringArray_Free(result, i);
                 return NULL;
             }
-            result[i]->appendChar(priv->data[i]);
+            result[i]->appendChar(private->data[i]);
         }
-        *out_count = priv->length;
+        *out_count = private->length;
     } else {
+        /* Count parts */
+        pos = private->data;
+        while ((pos = strstr(pos, delimiter)) != NULL) {
+            count++;
+            pos += delim_len;
+        }
+        
+        /* Allocate array */
+        result = calloc(count, sizeof(String*));
+        if (!result) return NULL;
+        
         /* Split by delimiter */
         char* start;
         char* end;
         size_t idx = 0;
         
-        start = priv->data;
+        start = private->data;
         
         while ((end = strstr(start, delimiter)) != NULL) {
             size_t part_len;
@@ -666,8 +628,7 @@ String** string_split(String* self, const char* delimiter, size_t* out_count) {
     return result;
 }
 
-String** string_split_any(String* self, const char* chars, size_t* out_count) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Dyadic(String**, string_split_any, String, StringPrivate, const char*, chars, size_t*, out_count)
     size_t count = 1;
     size_t i;
     String** result;
@@ -679,8 +640,8 @@ String** string_split_any(String* self, const char* chars, size_t* out_count) {
     *out_count = 0;
     
     /* Count parts */
-    for (i = 0; i < priv->length; i++) {
-        if (strchr(chars, priv->data[i])) {
+    for (i = 0; i < private->length; i++) {
+        if (strchr(chars, private->data[i])) {
             count++;
         }
     }
@@ -690,14 +651,14 @@ String** string_split_any(String* self, const char* chars, size_t* out_count) {
     if (!result) return NULL;
     
     /* Perform split */
-    start = priv->data;
+    start = private->data;
     
-    for (i = 0; i < priv->length; i++) {
-        if (strchr(chars, priv->data[i])) {
+    for (i = 0; i < private->length; i++) {
+        if (strchr(chars, private->data[i])) {
             size_t part_len;
             StringPrivate* part_priv;
             
-            part_len = (priv->data + i) - start;
+            part_len = (private->data + i) - start;
             result[idx] = StringMakeWithCapacity(NULL, part_len + 1);
             if (!result[idx]) {
                 StringArray_Free(result, idx);
@@ -710,7 +671,7 @@ String** string_split_any(String* self, const char* chars, size_t* out_count) {
             part_priv->length = part_len;
             
             idx++;
-            start = priv->data + i + 1;
+            start = private->data + i + 1;
         }
     }
     
@@ -725,12 +686,11 @@ String** string_split_any(String* self, const char* chars, size_t* out_count) {
     return result;
 }
 
-String** string_split_lines(String* self, size_t* out_count) {
+static TF_Unary(String**, string_split_lines, String, StringPrivate, size_t*, out_count)
     return string_split_any(self, "\r\n", out_count);
 }
 
-String* string_join(String* self, String** strings, size_t count) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Dyadic(String*, string_join, String, StringPrivate, String**, strings, size_t, count)
     size_t total_len = 0;
     size_t i;
     String* result;
@@ -742,7 +702,7 @@ String* string_join(String* self, String** strings, size_t count) {
         if (strings[i]) {
             total_len += strings[i]->length();
             if (i < count - 1) {
-                total_len += priv->length;
+                total_len += private->length;
             }
         }
     }
@@ -756,7 +716,7 @@ String* string_join(String* self, String** strings, size_t count) {
         if (strings[i]) {
             result->append(strings[i]->cStr());
             if (i < count - 1) {
-                result->append(priv->data);
+                result->append(private->data);
             }
         }
     }
@@ -768,20 +728,18 @@ String* string_join(String* self, String** strings, size_t count) {
 /* String Comparison Functions                                              */
 /* ======================================================================== */
 
-int string_compare(String* self, const char* other) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(int, string_compare, String, StringPrivate, const char*, other)
     if (!other) return 1;
-    return strcmp(priv->data, other);
+    return strcmp(private->data, other);
 }
 
-int string_compare_ignore_case(String* self, const char* other) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Unary(int, string_compare_ignore_case, String, StringPrivate, const char*, other)
     const char* s1;
     const char* s2;
     
     if (!other) return 1;
     
-    s1 = priv->data;
+    s1 = private->data;
     s2 = other;
     
     while (*s1 && *s2) {
@@ -795,178 +753,137 @@ int string_compare_ignore_case(String* self, const char* other) {
     return tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
 }
 
-bool string_equals(String* self, const char* other) {
+static TF_Unary(bool, string_equals, String, StringPrivate, const char*, other)
     return string_compare(self, other) == 0;
 }
 
-bool string_equals_ignore_case(String* self, const char* other) {
+static TF_Unary(bool, string_equals_ignore_case, String, StringPrivate, const char*, other)
     return string_compare_ignore_case(self, other) == 0;
 }
 
 /* ======================================================================== */
-/* String Utility Functions                                                 */
+/* String Utilities                                                         */
 /* ======================================================================== */
 
-bool string_is_integer(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    size_t i = 0;
-    
-    if (priv->length == 0) return false;
-    if (priv->data[0] == '-' || priv->data[0] == '+') {
-        if (priv->length == 1) return false;
-        i = 1;
-    }
-    
-    for (; i < priv->length; i++) {
-        if (!isdigit((unsigned char)priv->data[i])) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool string_is_float(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return false;
-    
-    bool has_dot = false;
-    bool has_e = false;
-    size_t i = 0;
-    
-    if (priv->data[0] == '-' || priv->data[0] == '+') {
-        if (priv->length == 1) return false;
-        i = 1;
-    }
-    
-    for (; i < priv->length; i++) {
-        char c = priv->data[i];
-        
-        if (c == '.') {
-            if (has_dot || has_e) return false;
-            has_dot = true;
-        } else if (c == 'e' || c == 'E') {
-            if (has_e || i == 0 || i == priv->length - 1) return false;
-            has_e = true;
-            if (i + 1 < priv->length && (priv->data[i+1] == '+' || priv->data[i+1] == '-')) {
-                i++;
-            }
-        } else if (!isdigit((unsigned char)c)) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool string_is_alpha(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return false;
-    
-    size_t i;
-    for (i = 0; i < priv->length; i++) {
-        if (!isalpha((unsigned char)priv->data[i])) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool string_is_digit(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return false;
-    
-    size_t i;
-    for (i = 0; i < priv->length; i++) {
-        if (!isdigit((unsigned char)priv->data[i])) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool string_is_alpha_numeric(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return false;
-    
-    size_t i;
-    for (i = 0; i < priv->length; i++) {
-        if (!isalnum((unsigned char)priv->data[i])) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool string_is_whitespace(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (priv->length == 0) return true;
-    
-    size_t i;
-    for (i = 0; i < priv->length; i++) {
-        if (!char_is_whitespace(priv->data[i])) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-int string_to_int(String* self, int default_value) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (!string_is_integer(self)) return default_value;
-    
+static TF_Getter(string_is_integer, String, StringPrivate, bool)
     char* endptr;
-    long result = strtol(priv->data, &endptr, 10);
     
+    if (private->length == 0) return false;
+    
+    strtol(private->data, &endptr, 10);
+    return *endptr == '\0';
+}
+
+static TF_Getter(string_is_float, String, StringPrivate, bool)
+    char* endptr;
+    
+    if (private->length == 0) return false;
+    
+    strtod(private->data, &endptr);
+    return *endptr == '\0';
+}
+
+static TF_Getter(string_is_alpha, String, StringPrivate, bool)
+    size_t i;
+    
+    if (private->length == 0) return false;
+    
+    for (i = 0; i < private->length; i++) {
+        if (!isalpha((unsigned char)private->data[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static TF_Getter(string_is_digit, String, StringPrivate, bool)
+    size_t i;
+    
+    if (private->length == 0) return false;
+    
+    for (i = 0; i < private->length; i++) {
+        if (!isdigit((unsigned char)private->data[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static TF_Getter(string_is_alpha_numeric, String, StringPrivate, bool)
+    size_t i;
+    
+    if (private->length == 0) return false;
+    
+    for (i = 0; i < private->length; i++) {
+        if (!isalnum((unsigned char)private->data[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static TF_Getter(string_is_whitespace, String, StringPrivate, bool)
+    size_t i;
+    
+    if (private->length == 0) return true;
+    
+    for (i = 0; i < private->length; i++) {
+        if (!char_is_whitespace(private->data[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static TF_Unary(int, string_to_int, String, StringPrivate, int, default_value)
+    char* endptr;
+    long value;
+    
+    if (private->length == 0) return default_value;
+    
+    value = strtol(private->data, &endptr, 10);
     if (*endptr != '\0') return default_value;
-    if (result > INT_MAX || result < INT_MIN) return default_value;
+    if (value > INT_MAX || value < INT_MIN) return default_value;
     
-    return (int)result;
+    return (int)value;
 }
 
-float string_to_float(String* self, float default_value) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (!string_is_float(self) && !string_is_integer(self)) return default_value;
-    
+static TF_Unary(float, string_to_float, String, StringPrivate, float, default_value)
     char* endptr;
-    float result = strtof(priv->data, &endptr);
+    float value;
     
+    if (private->length == 0) return default_value;
+    
+    value = strtof(private->data, &endptr);
     if (*endptr != '\0') return default_value;
     
-    return result;
+    return value;
 }
 
-double string_to_double(String* self, double default_value) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (!string_is_float(self) && !string_is_integer(self)) return default_value;
-    
+static TF_Unary(double, string_to_double, String, StringPrivate, double, default_value)
     char* endptr;
-    double result = strtod(priv->data, &endptr);
+    double value;
     
+    if (private->length == 0) return default_value;
+    
+    value = strtod(private->data, &endptr);
     if (*endptr != '\0') return default_value;
     
-    return result;
+    return value;
 }
 
-size_t string_hash(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    
-    /* DJB2 hash algorithm */
+static TF_Getter(string_hash, String, StringPrivate, size_t)
     size_t hash = 5381;
     size_t i;
     
-    for (i = 0; i < priv->length; i++) {
-        hash = ((hash << 5) + hash) + (unsigned char)priv->data[i];
+    for (i = 0; i < private->length; i++) {
+        hash = ((hash << 5) + hash) + private->data[i];
     }
     
     return hash;
 }
 
-String* string_to_string(String* self) {
+static TF_Getter(string_to_string, String, StringPrivate, String*)
     return string_clone(self);
 }
 
@@ -974,89 +891,32 @@ String* string_to_string(String* self) {
 /* Memory Management Functions                                              */
 /* ======================================================================== */
 
-bool string_reserve(String* self, size_t new_capacity) {
-    StringPrivate* priv = (StringPrivate*)self;
-    return string_ensure_capacity(priv, new_capacity);
+static TF_Unary(bool, string_reserve, String, StringPrivate, size_t, new_capacity)
+    return string_ensure_capacity(private, new_capacity);
 }
 
-bool string_shrink_to_fit(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
+static TF_Getter(string_shrink_to_fit, String, StringPrivate, bool)
+    char* new_data;
+    size_t new_capacity = private->length + 1;
     
-    if (priv->capacity == priv->length + 1) return true;
+    if (new_capacity >= private->capacity) return true;
     
-    char* new_data = realloc(priv->data, priv->length + 1);
+    new_data = realloc(private->data, new_capacity);
     if (!new_data) return false;
     
-    priv->data = new_data;
-    priv->capacity = priv->length + 1;
+    private->data = new_data;
+    private->capacity = new_capacity;
     return true;
 }
 
-void string_free(String* self) {
-    StringPrivate* priv = (StringPrivate*)self;
-    if (!priv) return;
-    
-    /* Free string data */
-    free(priv->data);
-    
-    /* Free all trampoline functions */
-    if (self->cStr) trampoline_free(self->cStr);
-    if (self->length) trampoline_free(self->length);
-    if (self->capacity) trampoline_free(self->capacity);
-    if (self->isEmpty) trampoline_free(self->isEmpty);
-    if (self->charAt) trampoline_free(self->charAt);
-    if (self->append) trampoline_free(self->append);
-    if (self->appendChar) trampoline_free(self->appendChar);
-    if (self->appendFormat) trampoline_free(self->appendFormat);
-    if (self->prepend) trampoline_free(self->prepend);
-    if (self->insert) trampoline_free(self->insert);
-    if (self->replace) trampoline_free(self->replace);
-    if (self->replaceFirst) trampoline_free(self->replaceFirst);
-    if (self->clear) trampoline_free(self->clear);
-    if (self->set) trampoline_free(self->set);
-    if (self->reverse) trampoline_free(self->reverse);
-    if (self->toUpperCaseInPlace) trampoline_free(self->toUpperCaseInPlace);
-    if (self->toLowerCaseInPlace) trampoline_free(self->toLowerCaseInPlace);
-    if (self->substring) trampoline_free(self->substring);
-    if (self->trim) trampoline_free(self->trim);
-    if (self->trimLeft) trampoline_free(self->trimLeft);
-    if (self->trimRight) trampoline_free(self->trimRight);
-    if (self->toUpperCase) trampoline_free(self->toUpperCase);
-    if (self->toLowerCase) trampoline_free(self->toLowerCase);
-    if (self->clone) trampoline_free(self->clone);
-    if (self->repeat) trampoline_free(self->repeat);
-    if (self->contains) trampoline_free(self->contains);
-    if (self->startsWith) trampoline_free(self->startsWith);
-    if (self->endsWith) trampoline_free(self->endsWith);
-    if (self->indexOf) trampoline_free(self->indexOf);
-    if (self->lastIndexOf) trampoline_free(self->lastIndexOf);
-    if (self->indexOfAny) trampoline_free(self->indexOfAny);
-    if (self->count) trampoline_free(self->count);
-    if (self->split) trampoline_free(self->split);
-    if (self->splitAny) trampoline_free(self->splitAny);
-    if (self->splitLines) trampoline_free(self->splitLines);
-    if (self->join) trampoline_free(self->join);
-    if (self->compare) trampoline_free(self->compare);
-    if (self->compareIgnoreCase) trampoline_free(self->compareIgnoreCase);
-    if (self->equals) trampoline_free(self->equals);
-    if (self->equalsIgnoreCase) trampoline_free(self->equalsIgnoreCase);
-    if (self->isInteger) trampoline_free(self->isInteger);
-    if (self->isFloat) trampoline_free(self->isFloat);
-    if (self->isAlpha) trampoline_free(self->isAlpha);
-    if (self->isDigit) trampoline_free(self->isDigit);
-    if (self->isAlphaNumeric) trampoline_free(self->isAlphaNumeric);
-    if (self->isWhitespace) trampoline_free(self->isWhitespace);
-    if (self->toInt) trampoline_free(self->toInt);
-    if (self->toFloat) trampoline_free(self->toFloat);
-    if (self->toDouble) trampoline_free(self->toDouble);
-    if (self->hash) trampoline_free(self->hash);
-    if (self->toString) trampoline_free(self->toString);
-    if (self->reserve) trampoline_free(self->reserve);
-    if (self->shrinkToFit) trampoline_free(self->shrinkToFit);
-    if (self->free) trampoline_free(self->free);
-    
-    /* Free the structure itself */
-    free(priv);
+static TF_Nullary(string_free, String, StringPrivate)
+    if (private) {
+        if (private->data) {
+            free(private->data);
+        }
+        trampoline_tracker_free_by_context(self);
+        free(private);
+    }
 }
 
 /* ======================================================================== */
@@ -1069,108 +929,104 @@ static String* string_make_internal(const char* str, size_t initial_capacity) {
         initial_capacity = str_len + 1;
     }
     
-    /* Allocate private structure */
-    StringPrivate* priv = calloc(1, sizeof(StringPrivate));
-    if (!priv) return NULL;
+    /* Use new TA_Allocate macro */
+    TA_Allocate(String, StringPrivate);
+    
+    if (!private) return NULL;
     
     /* Allocate string buffer */
-    priv->data = calloc(initial_capacity, 1);
-    if (!priv->data) {
-        free(priv);
+    private->data = calloc(initial_capacity, 1);
+    if (!private->data) {
+        free(private);
         return NULL;
     }
     
     /* Initialize fields */
     if (str) {
-        memcpy(priv->data, str, str_len);
-        priv->length = str_len;
+        memcpy(private->data, str, str_len);
+        private->length = str_len;
     }
-    priv->capacity = initial_capacity;
+    private->capacity = initial_capacity;
     
-    /* Get reference to embedded public interface */
-    String* string = &priv->public;
-    
-    /* Create trampoline functions */
-    trampoline_allocations allocations = {0};
-    
+    /* Create trampoline functions using trampoline_monitor */
     /* Core access */
-    string->cStr = trampoline_create_and_track(string_c_str, string, 0, &allocations);
-    string->length = trampoline_create_and_track(string_length, string, 0, &allocations);
-    string->capacity = trampoline_create_and_track(string_capacity, string, 0, &allocations);
-    string->isEmpty = trampoline_create_and_track(string_is_empty, string, 0, &allocations);
-    string->charAt = trampoline_create_and_track(string_char_at, string, 1, &allocations);
+    public->cStr = trampoline_monitor(string_c_str, public, 0, &tracker);
+    public->length = trampoline_monitor(string_length, public, 0, &tracker);
+    public->capacity = trampoline_monitor(string_capacity, public, 0, &tracker);
+    public->isEmpty = trampoline_monitor(string_is_empty, public, 0, &tracker);
+    public->charAt = trampoline_monitor(string_char_at, public, 1, &tracker);
     
     /* Modification */
-    string->append = trampoline_create_and_track(string_append, string, 1, &allocations);
-    string->appendChar = trampoline_create_and_track(string_append_char, string, 1, &allocations);
-    string->appendFormat = trampoline_create_and_track(string_append_format, string, 2, &allocations);
-    string->prepend = trampoline_create_and_track(string_prepend, string, 1, &allocations);
-    string->insert = trampoline_create_and_track(string_insert, string, 2, &allocations);
-    string->replace = trampoline_create_and_track(string_replace, string, 2, &allocations);
-    string->replaceFirst = trampoline_create_and_track(string_replace_first, string, 2, &allocations);
-    string->clear = trampoline_create_and_track(string_clear, string, 0, &allocations);
-    string->set = trampoline_create_and_track(string_set, string, 1, &allocations);
-    string->reverse = trampoline_create_and_track(string_reverse, string, 0, &allocations);
-    string->toUpperCaseInPlace = trampoline_create_and_track(string_to_upper_case_in_place, string, 0, &allocations);
-    string->toLowerCaseInPlace = trampoline_create_and_track(string_to_lower_case_in_place, string, 0, &allocations);
+    public->append = trampoline_monitor(string_append, public, 1, &tracker);
+    public->appendChar = trampoline_monitor(string_append_char, public, 1, &tracker);
+    public->appendFormat = trampoline_monitor(string_append_format, public, 2, &tracker);
+    public->prepend = trampoline_monitor(string_prepend, public, 1, &tracker);
+    public->insert = trampoline_monitor(string_insert, public, 2, &tracker);
+    public->replace = trampoline_monitor(string_replace, public, 2, &tracker);
+    public->replaceFirst = trampoline_monitor(string_replace_first, public, 2, &tracker);
+    public->clear = trampoline_monitor(string_clear, public, 0, &tracker);
+    public->set = trampoline_monitor(string_set, public, 1, &tracker);
+    public->reverse = trampoline_monitor(string_reverse, public, 0, &tracker);
+    public->toUpperCaseInPlace = trampoline_monitor(string_to_upper_case_in_place, public, 0, &tracker);
+    public->toLowerCaseInPlace = trampoline_monitor(string_to_lower_case_in_place, public, 0, &tracker);
     
     /* Creation */
-    string->substring = trampoline_create_and_track(string_substring, string, 2, &allocations);
-    string->trim = trampoline_create_and_track(string_trim, string, 0, &allocations);
-    string->trimLeft = trampoline_create_and_track(string_trim_left, string, 0, &allocations);
-    string->trimRight = trampoline_create_and_track(string_trim_right, string, 0, &allocations);
-    string->toUpperCase = trampoline_create_and_track(string_to_upper_case, string, 0, &allocations);
-    string->toLowerCase = trampoline_create_and_track(string_to_lower_case, string, 0, &allocations);
-    string->clone = trampoline_create_and_track(string_clone, string, 0, &allocations);
-    string->repeat = trampoline_create_and_track(string_repeat, string, 1, &allocations);
+    public->substring = trampoline_monitor(string_substring, public, 2, &tracker);
+    public->trim = trampoline_monitor(string_trim, public, 0, &tracker);
+    public->trimLeft = trampoline_monitor(string_trim_left, public, 0, &tracker);
+    public->trimRight = trampoline_monitor(string_trim_right, public, 0, &tracker);
+    public->toUpperCase = trampoline_monitor(string_to_upper_case, public, 0, &tracker);
+    public->toLowerCase = trampoline_monitor(string_to_lower_case, public, 0, &tracker);
+    public->clone = trampoline_monitor(string_clone, public, 0, &tracker);
+    public->repeat = trampoline_monitor(string_repeat, public, 1, &tracker);
     
     /* Searching */
-    string->contains = trampoline_create_and_track(string_contains, string, 1, &allocations);
-    string->startsWith = trampoline_create_and_track(string_starts_with, string, 1, &allocations);
-    string->endsWith = trampoline_create_and_track(string_ends_with, string, 1, &allocations);
-    string->indexOf = trampoline_create_and_track(string_index_of, string, 1, &allocations);
-    string->lastIndexOf = trampoline_create_and_track(string_last_index_of, string, 1, &allocations);
-    string->indexOfAny = trampoline_create_and_track(string_index_of_any, string, 1, &allocations);
-    string->count = trampoline_create_and_track(string_count, string, 1, &allocations);
+    public->contains = trampoline_monitor(string_contains, public, 1, &tracker);
+    public->startsWith = trampoline_monitor(string_starts_with, public, 1, &tracker);
+    public->endsWith = trampoline_monitor(string_ends_with, public, 1, &tracker);
+    public->indexOf = trampoline_monitor(string_index_of, public, 1, &tracker);
+    public->lastIndexOf = trampoline_monitor(string_last_index_of, public, 1, &tracker);
+    public->indexOfAny = trampoline_monitor(string_index_of_any, public, 1, &tracker);
+    public->count = trampoline_monitor(string_count, public, 1, &tracker);
     
     /* Splitting */
-    string->split = trampoline_create_and_track(string_split, string, 2, &allocations);
-    string->splitAny = trampoline_create_and_track(string_split_any, string, 2, &allocations);
-    string->splitLines = trampoline_create_and_track(string_split_lines, string, 1, &allocations);
-    string->join = trampoline_create_and_track(string_join, string, 2, &allocations);
+    public->split = trampoline_monitor(string_split, public, 2, &tracker);
+    public->splitAny = trampoline_monitor(string_split_any, public, 2, &tracker);
+    public->splitLines = trampoline_monitor(string_split_lines, public, 1, &tracker);
+    public->join = trampoline_monitor(string_join, public, 2, &tracker);
     
     /* Comparison */
-    string->compare = trampoline_create_and_track(string_compare, string, 1, &allocations);
-    string->compareIgnoreCase = trampoline_create_and_track(string_compare_ignore_case, string, 1, &allocations);
-    string->equals = trampoline_create_and_track(string_equals, string, 1, &allocations);
-    string->equalsIgnoreCase = trampoline_create_and_track(string_equals_ignore_case, string, 1, &allocations);
+    public->compare = trampoline_monitor(string_compare, public, 1, &tracker);
+    public->compareIgnoreCase = trampoline_monitor(string_compare_ignore_case, public, 1, &tracker);
+    public->equals = trampoline_monitor(string_equals, public, 1, &tracker);
+    public->equalsIgnoreCase = trampoline_monitor(string_equals_ignore_case, public, 1, &tracker);
     
     /* Utilities */
-    string->isInteger = trampoline_create_and_track(string_is_integer, string, 0, &allocations);
-    string->isFloat = trampoline_create_and_track(string_is_float, string, 0, &allocations);
-    string->isAlpha = trampoline_create_and_track(string_is_alpha, string, 0, &allocations);
-    string->isDigit = trampoline_create_and_track(string_is_digit, string, 0, &allocations);
-    string->isAlphaNumeric = trampoline_create_and_track(string_is_alpha_numeric, string, 0, &allocations);
-    string->isWhitespace = trampoline_create_and_track(string_is_whitespace, string, 0, &allocations);
-    string->toInt = trampoline_create_and_track(string_to_int, string, 1, &allocations);
-    string->toFloat = trampoline_create_and_track(string_to_float, string, 1, &allocations);
-    string->toDouble = trampoline_create_and_track(string_to_double, string, 1, &allocations);
-    string->hash = trampoline_create_and_track(string_hash, string, 0, &allocations);
-    string->toString = trampoline_create_and_track(string_to_string, string, 0, &allocations);
+    public->isInteger = trampoline_monitor(string_is_integer, public, 0, &tracker);
+    public->isFloat = trampoline_monitor(string_is_float, public, 0, &tracker);
+    public->isAlpha = trampoline_monitor(string_is_alpha, public, 0, &tracker);
+    public->isDigit = trampoline_monitor(string_is_digit, public, 0, &tracker);
+    public->isAlphaNumeric = trampoline_monitor(string_is_alpha_numeric, public, 0, &tracker);
+    public->isWhitespace = trampoline_monitor(string_is_whitespace, public, 0, &tracker);
+    public->toInt = trampoline_monitor(string_to_int, public, 1, &tracker);
+    public->toFloat = trampoline_monitor(string_to_float, public, 1, &tracker);
+    public->toDouble = trampoline_monitor(string_to_double, public, 1, &tracker);
+    public->hash = trampoline_monitor(string_hash, public, 0, &tracker);
+    public->toString = trampoline_monitor(string_to_string, public, 0, &tracker);
     
     /* Memory management */
-    string->reserve = trampoline_create_and_track(string_reserve, string, 1, &allocations);
-    string->shrinkToFit = trampoline_create_and_track(string_shrink_to_fit, string, 0, &allocations);
-    string->free = trampoline_create_and_track(string_free, string, 0, &allocations);
+    public->reserve = trampoline_monitor(string_reserve, public, 1, &tracker);
+    public->shrinkToFit = trampoline_monitor(string_shrink_to_fit, public, 0, &tracker);
+    public->free = trampoline_monitor(string_free, public, 0, &tracker);
     
-    /* Validate all trampolines were created */
-    if (!trampolines_validate(&allocations)) {
-        free(priv->data);
-        free(priv);
+    /* Validate all trampolines were created successfully */
+    if (!trampoline_validate(tracker)) {
+        free(private->data);
+        free(private);
         return NULL;
     }
     
-    return string;
+    return public;
 }
 
 String* StringMake(const char* str) {

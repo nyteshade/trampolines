@@ -92,32 +92,32 @@ typedef struct String {
    * @return Const pointer to internal string buffer
    * @note String is always null-terminated for C compatibility
    */
-  const char* (*cStr)(void);
+  TDGetter(cStr, const char*);
   
   /**
    * @brief Get the length of the string (excluding null terminator)
    * @return Number of characters in the string
    */
-  size_t (*length)(void);
+  TDGetter(length, size_t);
   
   /**
    * @brief Get the capacity of the internal buffer
    * @return Current allocated size including null terminator
    */
-  size_t (*capacity)(void);
+  TDGetter(capacity, size_t);
   
   /**
    * @brief Check if the string is empty
    * @return true if length is 0, false otherwise
    */
-  bool (*isEmpty)(void);
+  TDGetter(isEmpty, bool);
   
   /**
    * @brief Get character at specific index
    * @param index Position in string (0-based)
    * @return Character at index, or '\0' if out of bounds
    */
-  char (*charAt)(size_t index);
+  TDUnary(char, charAt, size_t);
   
   /* ================================================================ */
   /* String Modification (In-Place)                  */
@@ -128,20 +128,21 @@ typedef struct String {
    * @param str String to append (null-safe)
    * @return true if successful, false on error
    */
-  bool (*append)(const char* str);
+  TDUnary(bool, append, const char*);
   
   /**
    * @brief Append a single character
    * @param ch Character to append
    * @return true if successful, false on error
    */
-  bool (*appendChar)(char ch);
+  TDUnary(bool, appendChar, char);
   
   /**
    * @brief Append formatted string (like sprintf)
    * @param format Printf-style format string
    * @param ... Variable arguments
    * @return true if successful, false on error
+   * @note This uses variadic arguments which aren't covered by TDxx macros
    */
   bool (*appendFormat)(const char* format, ...);
   
@@ -150,7 +151,7 @@ typedef struct String {
    * @param str String to prepend (null-safe)
    * @return true if successful, false on error
    */
-  bool (*prepend)(const char* str);
+  TDUnary(bool, prepend, const char*);
   
   /**
    * @brief Insert string at specific position
@@ -158,7 +159,7 @@ typedef struct String {
    * @param str String to insert
    * @return true if successful, false on error or invalid index
    */
-  bool (*insert)(size_t index, const char* str);
+  TDDyadic(bool, insert, size_t, const char*);
   
   /**
    * @brief Replace all occurrences of a substring
@@ -166,7 +167,7 @@ typedef struct String {
    * @param replace String to replace with
    * @return Number of replacements made
    */
-  size_t (*replace)(const char* find, const char* replace);
+  TDDyadic(size_t, replace, const char*, const char*);
   
   /**
    * @brief Replace first occurrence of a substring
@@ -174,34 +175,34 @@ typedef struct String {
    * @param replace String to replace with
    * @return true if replacement made, false if not found
    */
-  bool (*replaceFirst)(const char* find, const char* replace);
+  TDDyadic(bool, replaceFirst, const char*, const char*);
   
   /**
    * @brief Clear the string (make it empty)
    */
-  void (*clear)(void);
+  TDNullary(clear);
   
   /**
    * @brief Set this string to a new value
    * @param str New string value (will be copied)
    * @return true if successful, false on error
    */
-  bool (*set)(const char* str);
+  TDUnary(bool, set, const char*);
   
   /**
    * @brief Reverse the string in place
    */
-  void (*reverse)(void);
+  TDNullary(reverse);
   
   /**
    * @brief Convert to uppercase in place
    */
-  void (*toUpperCaseInPlace)(void);
+  TDNullary(toUpperCaseInPlace);
   
   /**
    * @brief Convert to lowercase in place
    */
-  void (*toLowerCaseInPlace)(void);
+  TDNullary(toLowerCaseInPlace);
   
   /* ================================================================ */
   /* String Creation (Returns New String)              */
@@ -213,50 +214,50 @@ typedef struct String {
    * @param length Number of characters (0 = to end)
    * @return New String object or NULL on error
    */
-  struct String* (*substring)(size_t start, size_t length);
+  TDDyadic(struct String*, substring, size_t, size_t);
   
   /**
    * @brief Create a new string with whitespace removed from both ends
    * @return New trimmed String object
    */
-  struct String* (*trim)(void);
+  TDGetter(trim, struct String*);
   
   /**
    * @brief Create a new string with whitespace removed from left
    * @return New trimmed String object
    */
-  struct String* (*trimLeft)(void);
+  TDGetter(trimLeft, struct String*);
   
   /**
    * @brief Create a new string with whitespace removed from right
    * @return New trimmed String object
    */
-  struct String* (*trimRight)(void);
+  TDGetter(trimRight, struct String*);
   
   /**
    * @brief Create uppercase copy of this string
    * @return New uppercase String object
    */
-  struct String* (*toUpperCase)(void);
+  TDGetter(toUpperCase, struct String*);
   
   /**
    * @brief Create lowercase copy of this string
    * @return New lowercase String object
    */
-  struct String* (*toLowerCase)(void);
+  TDGetter(toLowerCase, struct String*);
   
   /**
    * @brief Create a copy of this string
    * @return New String object with same content
    */
-  struct String* (*clone)(void);
+  TDGetter(clone, struct String*);
   
   /**
    * @brief Repeat this string n times
    * @param count Number of repetitions
    * @return New String with repeated content
    */
-  struct String* (*repeat)(size_t count);
+  TDUnary(struct String*, repeat, size_t);
   
   /* ================================================================ */
   /* String Searching                        */
@@ -267,49 +268,49 @@ typedef struct String {
    * @param needle Substring to search for
    * @return true if found, false otherwise
    */
-  bool (*contains)(const char* needle);
+  TDUnary(bool, contains, const char*);
   
   /**
    * @brief Check if string starts with a prefix
    * @param prefix String to check at beginning
    * @return true if string starts with prefix
    */
-  bool (*startsWith)(const char* prefix);
+  TDUnary(bool, startsWith, const char*);
   
   /**
    * @brief Check if string ends with a suffix
    * @param suffix String to check at end
    * @return true if string ends with suffix
    */
-  bool (*endsWith)(const char* suffix);
+  TDUnary(bool, endsWith, const char*);
   
   /**
    * @brief Find first occurrence of substring
    * @param needle String to search for
    * @return Index of first occurrence, or (size_t)-1 if not found
    */
-  size_t (*indexOf)(const char* needle);
+  TDUnary(size_t, indexOf, const char*);
   
   /**
    * @brief Find last occurrence of substring
    * @param needle String to search for
    * @return Index of last occurrence, or (size_t)-1 if not found
    */
-  size_t (*lastIndexOf)(const char* needle);
+  TDUnary(size_t, lastIndexOf, const char*);
   
   /**
    * @brief Find first occurrence of any character in set
    * @param chars Set of characters to search for
    * @return Index of first match, or (size_t)-1 if not found
    */
-  size_t (*indexOfAny)(const char* chars);
+  TDUnary(size_t, indexOfAny, const char*);
   
   /**
    * @brief Count occurrences of substring
    * @param needle Substring to count
    * @return Number of non-overlapping occurrences
    */
-  size_t (*count)(const char* needle);
+  TDUnary(size_t, count, const char*);
   
   /* ================================================================ */
   /* String Splitting and Joining                  */
@@ -321,7 +322,7 @@ typedef struct String {
    * @param out_count Pointer to store number of parts
    * @return Array of new String objects (caller must free array and strings)
    */
-  struct String** (*split)(const char* delimiter, size_t* out_count);
+  TDDyadic(struct String**, split, const char*, size_t*);
   
   /**
    * @brief Split string by any character in set
@@ -329,14 +330,14 @@ typedef struct String {
    * @param out_count Pointer to store number of parts
    * @return Array of new String objects (caller must free array and strings)
    */
-  struct String** (*splitAny)(const char* chars, size_t* out_count);
+  TDDyadic(struct String**, splitAny, const char*, size_t*);
   
   /**
    * @brief Split string into lines
    * @param out_count Pointer to store number of lines
    * @return Array of new String objects (caller must free array and strings)
    */
-  struct String** (*splitLines)(size_t* out_count);
+  TDUnary(struct String**, splitLines, size_t*);
   
   /**
    * @brief Join array of strings with this string as separator
@@ -344,7 +345,7 @@ typedef struct String {
    * @param count Number of strings in array
    * @return New joined String object
    */
-  struct String* (*join)(struct String** strings, size_t count);
+  TDDyadic(struct String*, join, struct String**, size_t);
   
   /* ================================================================ */
   /* String Comparison                         */
@@ -355,28 +356,28 @@ typedef struct String {
    * @param other String to compare with
    * @return 0 if equal, <0 if this<other, >0 if this>other
    */
-  int (*compare)(const char* other);
+  TDUnary(int, compare, const char*);
   
   /**
    * @brief Compare with another string (case-insensitive)
    * @param other String to compare with
    * @return 0 if equal, <0 if this<other, >0 if this>other
    */
-  int (*compareIgnoreCase)(const char* other);
+  TDUnary(int, compareIgnoreCase, const char*);
   
   /**
    * @brief Check if equal to another string
    * @param other String to compare with
    * @return true if strings are equal
    */
-  bool (*equals)(const char* other);
+  TDUnary(bool, equals, const char*);
   
   /**
    * @brief Check if equal to another string (case-insensitive)
    * @param other String to compare with
    * @return true if strings are equal ignoring case
    */
-  bool (*equalsIgnoreCase)(const char* other);
+  TDUnary(bool, equalsIgnoreCase, const char*);
   
   /* ================================================================ */
   /* String Utilities                        */
@@ -386,71 +387,71 @@ typedef struct String {
    * @brief Check if string represents a valid integer
    * @return true if string can be parsed as integer
    */
-  bool (*isInteger)(void);
+  TDGetter(isInteger, bool);
   
   /**
    * @brief Check if string represents a valid float
    * @return true if string can be parsed as float
    */
-  bool (*isFloat)(void);
+  TDGetter(isFloat, bool);
   
   /**
    * @brief Check if string contains only alphabetic characters
    * @return true if all characters are letters
    */
-  bool (*isAlpha)(void);
+  TDGetter(isAlpha, bool);
   
   /**
    * @brief Check if string contains only digits
    * @return true if all characters are digits
    */
-  bool (*isDigit)(void);
+  TDGetter(isDigit, bool);
   
   /**
    * @brief Check if string contains only alphanumeric characters
    * @return true if all characters are letters or digits
    */
-  bool (*isAlphaNumeric)(void);
+  TDGetter(isAlphaNumeric, bool);
   
   /**
    * @brief Check if string contains only whitespace
    * @return true if all characters are whitespace
    */
-  bool (*isWhitespace)(void);
+  TDGetter(isWhitespace, bool);
   
   /**
    * @brief Convert string to integer
    * @param default_value Value to return if conversion fails
    * @return Parsed integer or default_value
    */
-  int (*toInt)(int default_value);
+  TDUnary(int, toInt, int);
   
   /**
    * @brief Convert string to float
    * @param default_value Value to return if conversion fails
    * @return Parsed float or default_value
    */
-  float (*toFloat)(float default_value);
+  TDUnary(float, toFloat, float);
   
   /**
    * @brief Convert string to double
    * @param default_value Value to return if conversion fails
    * @return Parsed double or default_value
    */
-  double (*toDouble)(double default_value);
+  TDUnary(double, toDouble, double);
   
   /**
    * @brief Calculate hash code for the string
    * @return Hash value suitable for hash tables
    */
-  size_t (*hash)(void);
+  TDGetter(hash, size_t);
   
   /**
    * @brief Get a read-only version of the string
    * @return New String that cannot be modified
    * @note Not enforced by compiler, but convention
    */
-  struct String* (*toString)(void);
+  TDGetter(toString, struct String*);
   
   /* ================================================================ */
   /* Memory Management                         */
@@ -461,19 +462,19 @@ typedef struct String {
    * @param new_capacity Minimum capacity to ensure
    * @return true if successful, false on allocation failure
    */
-  bool (*reserve)(size_t new_capacity);
+  TDUnary(bool, reserve, size_t);
   
   /**
    * @brief Shrink capacity to fit current string length
    * @return true if successful, false on error
    */
-  bool (*shrinkToFit)(void);
+  TDGetter(shrinkToFit, bool);
   
   /**
    * @brief Free the String and all resources
    * @warning Do not use the object after calling this
    */
-  void (*free)(void);
+  TDNullary(free);
 } String;
 
 /* ======================================================================== */

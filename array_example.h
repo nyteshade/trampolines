@@ -5,16 +5,16 @@
 #include <stddef.h>
 
 typedef struct PtrArray {
-  TRGetter(capacity, size_t);       /* same as `size_t (*capacity)();` */
-  TRGetter(size, size_t);           /* same as `size_t (*size)();` */
+  TDGetter(capacity, size_t);       /* same as `size_t (*capacity)();` */
+  TDGetter(size, size_t);           /* same as `size_t (*size)();` */
 
-  TRGetter(first, void*);           /* same as `void* (*first)();` */
-  TRGetter(last, void*);            /* same as `void* (*last)();` */
+  TDGetter(first, void*);           /* same as `void* (*first)();` */
+  TDGetter(last, void*);            /* same as `void* (*last)();` */
 
-  TRUnary(void, append, void*);     /* same as `void (*append)(void*); */
-  TRUnary(void*, elementAt, int);   /* same as `void* (*elementAt)(int); */
+  TDUnary(void, append, void*);     /* same as `void (*append)(void*); */
+  TDUnary(void*, elementAt, int);   /* same as `void* (*elementAt)(int); */
 
-  TRNullary(free);                  /* same as `void (*free)();` */
+  TDNullary(free);                  /* same as `void (*free)();` */
 } PtrArray;
 
 PtrArray* PtrArrayMake(size_t initial_capacity);
