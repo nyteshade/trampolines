@@ -5,6 +5,7 @@
 
 #include <trampolines/network.h>
 #include <trampolines/string.h>
+#include <trampolines/json.h>
 #include <trampoline.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,6 +157,22 @@ static TF_Getter(networkresponse_bodyAsString, NetworkResponse, NetworkResponseP
     return StringMake("");
 }
 
+static TF_Getter(networkresponse_bodyAsJson, NetworkResponse, NetworkResponsePrivate, Json*)
+    if (!private->body || private->body_length == 0) {
+        return NULL;
+    }
+    return JsonParse(private->body);
+}
+
+static TF_Getter(networkresponse_isJson, NetworkResponse, NetworkResponsePrivate, int)
+    const char* content_type = networkresponse_header(self, "Content-Type");
+    if (!content_type) {
+        return 0;
+    }
+    /* Check if content type contains "json" */
+    return strstr(content_type, "json") != NULL;
+}
+
 static TF_Getter(networkresponse_contentType, NetworkResponse, NetworkResponsePrivate, const char*)
     (void)private; /* Suppress unused warning */
     return networkresponse_header(self, "Content-Type");
@@ -297,10 +314,12 @@ NetworkResponse* NetworkResponseMake(int status_code, const char* status_text, c
     public->body = trampoline_monitor(networkresponse_body, public, 0, &tracker);
     public->bodyLength = trampoline_monitor(networkresponse_bodyLength, public, 0, &tracker);
     public->bodyAsString = trampoline_monitor(networkresponse_bodyAsString, public, 0, &tracker);
+    public->bodyAsJson = trampoline_monitor(networkresponse_bodyAsJson, public, 0, &tracker);
     
     public->contentType = trampoline_monitor(networkresponse_contentType, public, 0, &tracker);
     public->contentLength = trampoline_monitor(networkresponse_contentLength, public, 0, &tracker);
     public->hasHeader = trampoline_monitor(networkresponse_hasHeader, public, 1, &tracker);
+    public->isJson = trampoline_monitor(networkresponse_isJson, public, 0, &tracker);
     
     public->free = trampoline_monitor(networkresponse_free, public, 0, &tracker);
     

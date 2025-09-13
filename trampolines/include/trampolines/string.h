@@ -16,18 +16,25 @@
 #include <trampoline.h>  /* Expects trampoline.h in system includes */
 #include <stddef.h>
 
-/* C89 compatibility for bool */
-#ifndef __cplusplus
-  #ifndef __STDC_VERSION__
-  typedef int bool;
-  #define true 1
-  #define false 0
-  #elif __STDC_VERSION__ < 199901L
-  typedef int bool;
-  #define true 1
-  #define false 0
-  #else
-  #include <stdbool.h>
+/* C89-compatible boolean type */
+#ifndef TRAMPOLINE_BOOL_DEFINED
+#define TRAMPOLINE_BOOL_DEFINED
+  #ifndef __cplusplus
+    #ifdef __STDC_VERSION__
+      #if __STDC_VERSION__ >= 199901L
+        #include <stdbool.h>
+      #else
+        /* C89 mode */
+        typedef int bool;
+        #define true 1
+        #define false 0
+      #endif
+    #else
+      /* C89 mode (no __STDC_VERSION__) */
+      typedef int bool;
+      #define true 1
+      #define false 0
+    #endif
   #endif
 #endif
 

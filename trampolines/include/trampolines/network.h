@@ -8,6 +8,7 @@
 
 #include <trampoline.h>
 #include <trampolines/string.h>
+#include <trampolines/json.h>
 #include <stddef.h>
 
 /* ======================================================================== */
@@ -64,11 +65,13 @@ typedef struct NetworkResponse {
   TDGetter(body, const char*);
   TDGetter(bodyLength, size_t);
   TDGetter(bodyAsString, String*);
+  TDGetter(bodyAsJson, Json*);
   
   /* Utilities */
   TDGetter(contentType, const char*);
   TDGetter(contentLength, size_t);
   TDUnary(int, hasHeader, const char*);
+  TDGetter(isJson, int);
   
   /* Memory management */
   TDNullary(free);
@@ -95,6 +98,7 @@ typedef struct NetworkRequest {
   TDSetter(setBody, const char*);
   TDGetter(bodyLength, size_t);
   TDUnary(void, setBodyString, String*);
+  TDUnary(void, setBodyJson, Json*);
   
   /* Connection settings */
   TDGetter(port, int);

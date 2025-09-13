@@ -5,6 +5,7 @@
 
 #include <trampolines/network.h>
 #include <trampolines/string.h>
+#include <trampolines/json.h>
 #include <trampoline.h>
 #include "network_common.h"
 #include <stdlib.h>
@@ -272,6 +273,24 @@ static TF_Unary(void, networkrequest_setBodyString, NetworkRequest, NetworkReque
     }
 }
 
+static TF_Unary(void, networkrequest_setBodyJson, NetworkRequest, NetworkRequestPrivate, Json*, json)
+    char* json_str;
+    
+    (void)private; /* Suppress unused warning */
+    
+    if (json) {
+        json_str = json->stringify();
+        if (json_str) {
+            networkrequest_setBody(self, json_str);
+            /* Also set Content-Type header for JSON */
+            self->setHeader("Content-Type", "application/json");
+            free(json_str);
+        }
+    } else {
+        networkrequest_setBody(self, NULL);
+    }
+}
+
 static TF_Getter(networkrequest_port, NetworkRequest, NetworkRequestPrivate, int)
     return private->port;
 }
@@ -474,6 +493,7 @@ NetworkRequest* NetworkRequestMake(const char* url, HttpMethod method) {
     public->setBody = trampoline_monitor(networkrequest_setBody, public, 1, &tracker);
     public->bodyLength = trampoline_monitor(networkrequest_bodyLength, public, 0, &tracker);
     public->setBodyString = trampoline_monitor(networkrequest_setBodyString, public, 1, &tracker);
+    public->setBodyJson = trampoline_monitor(networkrequest_setBodyJson, public, 1, &tracker);
     
     public->port = trampoline_monitor(networkrequest_port, public, 0, &tracker);
     public->setPort = trampoline_monitor(networkrequest_setPort, public, 1, &tracker);

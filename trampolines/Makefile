@@ -31,7 +31,8 @@ INSTALL_PREFIX = /usr/local
 CLASSES_SRCS = $(CLASSES_DIR)/string.c \
                $(CLASSES_DIR)/network_common.c \
                $(CLASSES_DIR)/network_request.c \
-               $(CLASSES_DIR)/network_response.c
+               $(CLASSES_DIR)/network_response.c \
+               $(CLASSES_DIR)/json.c
 
 CLASSES_OBJS = $(CLASSES_SRCS:.c=.o)
 CLASSES_LIB_STATIC = $(LIB_DIR)/libtrampolines.a
@@ -39,7 +40,8 @@ CLASSES_LIB_SHARED = $(LIB_DIR)/libtrampolines.$(DYLIB_EXT)
 
 # Headers to install
 CLASSES_HEADERS = $(INCLUDE_DIR)/trampolines/string.h \
-                  $(INCLUDE_DIR)/trampolines/network.h
+                  $(INCLUDE_DIR)/trampolines/network.h \
+                  $(INCLUDE_DIR)/trampolines/json.h
 
 # Default target
 all: $(CLASSES_LIB_STATIC) $(CLASSES_LIB_SHARED)
@@ -79,6 +81,9 @@ $(CLASSES_DIR)/network_request.o: $(CLASSES_DIR)/network_request.c $(INCLUDE_DIR
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
 $(CLASSES_DIR)/network_response.o: $(CLASSES_DIR)/network_response.c $(INCLUDE_DIR)/trampolines/network.h
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+
+$(CLASSES_DIR)/json.o: $(CLASSES_DIR)/json.c $(INCLUDE_DIR)/trampolines/json.h $(INCLUDE_DIR)/trampolines/string.h
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
 # Installation
@@ -147,10 +152,12 @@ help:
 	@echo "Current classes in libtrampolines:"
 	@echo "  - String  (trampolines/string.h)"
 	@echo "  - Network (trampolines/network.h) with SSL support"
+	@echo "  - Json    (trampolines/json.h)"
 	@echo ""
 	@echo "Usage:"
 	@echo "  #include <trampolines/string.h>"
 	@echo "  #include <trampolines/network.h>"
+	@echo "  #include <trampolines/json.h>"
 	@echo "  gcc prog.c -ltrampoline -ltrampolines $(SSL_LDFLAGS)"
 
 .PHONY: all install uninstall clean string-only network-only ssl-info help
