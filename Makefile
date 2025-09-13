@@ -25,6 +25,18 @@ else ifeq ($(UNAME_M),arm64)
     ARCH_SRC = trampoline_arm64.c
 else ifeq ($(UNAME_M),aarch64)
     ARCH_SRC = trampoline_arm64.c
+else ifeq ($(UNAME_M),x86)
+    ARCH_SRC = trampoline_x86.c
+else ifeq ($(UNAME_M),i386)
+    ARCH_SRC = trampoline_x86.c
+else ifeq ($(UNAME_M),ppc)
+    ARCH_SRC = trampoline_ppc.c
+else ifeq ($(UNAME_M),ppc64)
+    ARCH_SRC = trampoline_ppc64.c
+else ifeq ($(UNAME_M),arm)
+    ARCH_SRC = trampoline_arm32.c
+else ifeq ($(UNAME_M),arm32)
+    ARCH_SRC = trampoline_arm32.c
 else
     $(error Unsupported architecture: $(UNAME_M))
 endif
