@@ -3,8 +3,8 @@
  * @brief Simple demonstration of String's zero-cognitive-load API
  */
 
-#include "string.h"
-#include "string.c"
+#include <trampolines/string.h>
+
 #include <stdio.h>
 
 int main(void) {

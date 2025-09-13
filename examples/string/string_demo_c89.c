@@ -3,8 +3,8 @@
  * @brief Fully C89-compliant demonstration of String with trampoline member functions
  */
 
-#include "string.h"
-#include "string.c"
+#include <trampolines/string.h>
+
 #include <stdio.h>
 
 int main(void) {

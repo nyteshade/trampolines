@@ -20,7 +20,7 @@ static uint32_t* mov_imm64(uint32_t* b, uint8_t xd, uint64_t v) {
   static inline uint32_t mov_reg(uint8_t xd, uint8_t xm) {   // mov xd,xm
     return 0xAA0003E0 | (xm<<16) | xd;
   }
-  static inline uint32_t add_imm_sp(uint8_t xd, uint32_t imm12) { // add xd,sp,#imm
+  __attribute__((unused)) static inline uint32_t add_imm_sp(uint8_t xd, uint32_t imm12) { // add xd,sp,#imm
     return 0x91000000 | (imm12<<10) | (31<<5) | xd; // 31 encodes SP
   }
   static inline uint32_t sub_imm_sp(uint32_t imm12) { // sub sp,sp,#imm

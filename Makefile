@@ -1,145 +1,123 @@
-# Makefile for the Trampoline Project
+# Main Makefile for Trampoline Core Library
+# This builds only the core trampoline library (libtrampoline)
+# For the optional classes library, see trampolines/Makefile
 
-# --- Configuration ---
-CC = clang
-CFLAGS = -Wall -Wextra -std=c99 -g
-# Flags for building Position-Independent Code for shared libraries
-SHARED_CFLAGS = $(CFLAGS) -fPIC
+# Compiler and flags
+CC = gcc
+AR = ar
+CFLAGS = -Wall -O2 -fPIC
+LDFLAGS = -shared
 
-# --- Installation Paths ---
-# By default, install to /usr/local.
-# Override with `make install PREFIX=$HOME/.local` for a user-local install.
-PREFIX ?= /usr/local
-INSTALL_LIB_DIR = $(PREFIX)/lib
-INSTALL_INCLUDE_DIR = $(PREFIX)/include
-
-# --- System Detection ---
-OS = $(shell uname)
-ifeq ($(OS), Darwin)
-	SHARED_LIB_EXT = .dylib
+# Detect OS for library extension
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    DYLIB_EXT = dylib
+    LDFLAGS = -dynamiclib
 else
-	SHARED_LIB_EXT = .so
+    DYLIB_EXT = so
 endif
 
-# --- File Definitions ---
-SRCS = main.c trampoline.c
-SHARED_LIB_SRC = trampoline.c
-STATIC_LIB_SRC = trampoline.c
-
-# --- Target Names ---
-SHARED_LIB = libtrampoline$(SHARED_LIB_EXT)
-STATIC_LIB = libtrampoline.a
-
-# --- Primary Targets ---
-
-# The default target builds the main executable.
-all:
-ifeq ($(OS), Darwin)
-	$(MAKE) universal
+# Detect architecture for source selection
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_M),x86_64)
+    ARCH_SRC = trampoline_x86_64.c
+else ifeq ($(UNAME_M),arm64)
+    ARCH_SRC = trampoline_arm64.c
+else ifeq ($(UNAME_M),aarch64)
+    ARCH_SRC = trampoline_arm64.c
 else
-	$(MAKE) trampoline_demo_native
+    $(error Unsupported architecture: $(UNAME_M))
 endif
 
-# Help target to display available commands
-help:
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Main Targets:"
-	@echo "  all                  Builds the default executable for the platform."
-	@echo "  help                 Shows this help message."
-	@echo ""
-	@echo "Library Targets:"
-	@echo "  shared-lib           Builds a shared library (.dylib or .so)."
-	@echo "  static-lib           Builds a static library (.a)."
-	@echo ""
-	@echo "Installation Targets:"
-	@echo "  install              Install headers and libraries. Use 'sudo' for system paths."
-	@echo "                       (e.g., 'make install PREFIX=$$HOME/.local' for user install)"
-	@echo "  uninstall            Remove installed headers and libraries."
-	@echo ""
-	@echo "macOS Specific:"
-	@echo "  universal            Builds a universal executable (x86_64 and arm64)."
-	@echo ""
-	@echo "Utility Targets:"
-	@echo "  clean                Removes all build artifacts."
+# Directories
+LIB_DIR = lib
+INSTALL_PREFIX = /usr/local
 
-# --- Installation Targets ---
+# Core library files
+CORE_SRCS = $(ARCH_SRC) trampoline_helpers.c
+CORE_OBJS = $(CORE_SRCS:.c=.o)
+CORE_LIB_STATIC = $(LIB_DIR)/libtrampoline.a
+CORE_LIB_SHARED = $(LIB_DIR)/libtrampoline.$(DYLIB_EXT)
 
-install: shared-lib static-lib
-	@echo "Installing to $(PREFIX)..."
-	mkdir -p $(INSTALL_LIB_DIR)
-	mkdir -p $(INSTALL_INCLUDE_DIR)
-	install -m 644 trampoline.h $(INSTALL_INCLUDE_DIR)
-	install -m 644 $(SHARED_LIB) $(INSTALL_LIB_DIR)
-	install -m 644 $(STATIC_LIB) $(INSTALL_LIB_DIR)
-	@echo "Installation complete."
+# Default target
+all: $(CORE_LIB_STATIC) $(CORE_LIB_SHARED)
 
+# Create lib directory
+$(LIB_DIR):
+	mkdir -p $(LIB_DIR)
+
+# Build static library
+$(CORE_LIB_STATIC): $(CORE_OBJS) | $(LIB_DIR)
+	$(AR) rcs $@ $^
+	@echo "Built static core library: $@"
+
+# Build shared library
+$(CORE_LIB_SHARED): $(CORE_OBJS) | $(LIB_DIR)
+ifeq ($(UNAME_S),Darwin)
+	$(CC) $(LDFLAGS) -install_name @rpath/libtrampoline.$(DYLIB_EXT) -o $@ $^
+else
+	$(CC) $(LDFLAGS) -o $@ $^
+endif
+	@echo "Built shared core library: $@"
+
+# Pattern rule for object files
+%.o: %.c trampoline.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Installation
+install: all
+	@echo "Installing core trampoline library..."
+	install -d $(INSTALL_PREFIX)/include
+	install -d $(INSTALL_PREFIX)/lib
+	install -m 644 trampoline.h $(INSTALL_PREFIX)/include/
+	install -m 644 $(CORE_LIB_STATIC) $(INSTALL_PREFIX)/lib/
+	install -m 755 $(CORE_LIB_SHARED) $(INSTALL_PREFIX)/lib/
+ifeq ($(UNAME_S),Darwin)
+	@echo "Updating dylib install names..."
+	install_name_tool -id $(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT) \
+		$(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT)
+endif
+	@echo "Core library installed to $(INSTALL_PREFIX)"
+
+# Uninstall
 uninstall:
-	@echo "Uninstalling from $(PREFIX)..."
-	rm -f $(INSTALL_INCLUDE_DIR)/trampoline.h
-	rm -f $(INSTALL_LIB_DIR)/$(SHARED_LIB)
-	rm -f $(INSTALL_LIB_DIR)/$(STATIC_LIB)
-	@echo "Uninstallation complete."
+	@echo "Uninstalling core library..."
+	rm -f $(INSTALL_PREFIX)/include/trampoline.h
+	rm -f $(INSTALL_PREFIX)/lib/libtrampoline.a
+	rm -f $(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT)
 
-
-# --- Library Targets ---
-shared-lib: $(SHARED_LIB)
-static-lib: $(STATIC_LIB)
-
-# macOS (Darwin) specific library builds
-ifeq ($(OS), Darwin)
-$(SHARED_LIB): libtrampoline.x86_64.dylib libtrampoline.arm64.dylib
-	@echo "Creating universal shared library..."
-	lipo -create -output $@ $^
-$(STATIC_LIB): libtrampoline.x86_64.a libtrampoline.arm64.a
-	@echo "Creating universal static library..."
-	lipo -create -output $@ $^
-libtrampoline.x86_64.dylib: trampoline.x86_64.shared.o
-	$(CC) --target=x86_64-apple-darwin -dynamiclib -o $@ $^
-libtrampoline.arm64.dylib: trampoline.arm64.shared.o
-	$(CC) --target=arm64-apple-darwin -dynamiclib -o $@ $^
-libtrampoline.x86_64.a: trampoline.x86_64.o
-	ar rcs $@ $^
-libtrampoline.arm64.a: trampoline.arm64.o
-	ar rcs $@ $^
-# Linux specific library builds
-else
-$(SHARED_LIB): $(SHARED_LIB_SRC:.c=.shared.o)
-	@echo "Building Linux shared library..."
-	$(CC) $(SHARED_CFLAGS) -shared -o $@ $^
-$(STATIC_LIB): $(STATIC_LIB_SRC:.c=.o)
-	@echo "Building Linux static library..."
-	ar rcs $@ $^
-endif
-
-# --- Executable Targets ---
-universal: trampoline_demo_x86_64 trampoline_demo_arm64
-	@echo "Creating universal executable..."
-	lipo -create -output trampoline_demo_universal $^
-trampoline_demo_native: $(SRCS:.c=.o)
-	$(CC) $(CFLAGS) -o $@ $^
-trampoline_demo_x86_64: main.x86_64.o trampoline.x86_64.o
-	$(CC) --target=x86_64-apple-darwin -o $@ $^
-trampoline_demo_arm64: main.arm64.o trampoline.arm64.o
-	$(CC) --target=arm64-apple-darwin -o $@ $^
-
-# --- Object File Rules ---
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-%.shared.o: %.c
-	$(CC) $(SHARED_CFLAGS) -c -o $@ $<
-%.x86_64.o: %.c
-	$(CC) $(CFLAGS) --target=x86_64-apple-darwin -c -o $@ $<
-%.arm64.o: %.c
-	$(CC) $(CFLAGS) --target=arm64-apple-darwin -c -o $@ $<
-%.x86_64.shared.o: %.c
-	$(CC) $(SHARED_CFLAGS) --target=x86_64-apple-darwin -c -o $@ $<
-%.arm64.shared.o: %.c
-	$(CC) $(SHARED_CFLAGS) --target=arm64-apple-darwin -c -o $@ $<
-
-# --- Utility Targets ---
+# Clean
 clean:
-	@echo "Cleaning up build artifacts..."
-	rm -f trampoline_demo_* *.o *.a *.so *.dylib
+	rm -f *.o
+	rm -rf $(LIB_DIR)
 
-.PHONY: all clean universal shared-lib static-lib help install uninstall
+# Build all (core + classes)
+all-with-classes: all
+	@echo "Building classes library..."
+	$(MAKE) -C trampolines all
+
+# Install all (core + classes)
+install-all: install
+	$(MAKE) -C trampolines install
+
+# Help
+help:
+	@echo "Trampoline Core Library Makefile"
+	@echo "================================="
+	@echo ""
+	@echo "Core library targets:"
+	@echo "  make              - Build core library only"
+	@echo "  make install      - Install core library"
+	@echo "  make uninstall    - Uninstall core library"
+	@echo "  make clean        - Remove build artifacts"
+	@echo ""
+	@echo "Combined targets (core + classes):"
+	@echo "  make all-with-classes    - Build core and classes libraries"
+	@echo "  make install-all         - Install everything"
+	@echo ""
+	@echo "For classes library only:"
+	@echo "  cd trampolines && make"
+	@echo ""
+	@echo "Current architecture: $(UNAME_M) -> $(ARCH_SRC)"
+
+.PHONY: all install uninstall clean all-with-classes install-all help
