@@ -26,6 +26,8 @@ SRC_DIR = src
 CLASSES_DIR = $(SRC_DIR)/classes
 LIB_DIR = ../lib
 INSTALL_PREFIX = /usr/local
+INSTALL_LIB_DIR = $(INSTALL_PREFIX)/lib
+INSTALL_INC_DIR = $(INSTALL_PREFIX)/include
 
 # Classes library files
 CLASSES_SRCS = $(CLASSES_DIR)/string.c \
@@ -89,28 +91,28 @@ $(CLASSES_DIR)/json.o: $(CLASSES_DIR)/json.c $(INCLUDE_DIR)/trampolines/json.h $
 # Installation
 install: all
 	@echo "Installing classes library..."
-	install -d $(INSTALL_PREFIX)/include/trampolines
+	install -d $(INSTALL_INC_DIR)/trampolines
 	for header in $(CLASSES_HEADERS); do \
 		if [ -f $$header ]; then \
-			install -m 644 $$header $(INSTALL_PREFIX)/include/trampolines/; \
+			install -m 644 $$header $(INSTALL_INC_DIR)/trampolines/; \
 		fi \
 	done
-	install -m 644 $(CLASSES_LIB_STATIC) $(INSTALL_PREFIX)/lib/
-	install -m 755 $(CLASSES_LIB_SHARED) $(INSTALL_PREFIX)/lib/
+	install -m 644 $(CLASSES_LIB_STATIC) $(INSTALL_LIB_DIR)/
+	install -m 755 $(CLASSES_LIB_SHARED) $(INSTALL_LIB_DIR)/
 ifeq ($(UNAME_S),Darwin)
 	@echo "Updating dylib install names..."
-	install_name_tool -id $(INSTALL_PREFIX)/lib/libtrampolines.$(DYLIB_EXT) \
-		$(INSTALL_PREFIX)/lib/libtrampolines.$(DYLIB_EXT)
+	install_name_tool -id $(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT) \
+		$(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT)
 endif
-	@echo "Classes library installed to $(INSTALL_PREFIX)"
+	@echo "Classes library installed to $(INSTALL_LIB_DIR), includes to $(INSTALL_INC_DIR)"
 
 # Uninstall
 uninstall:
 	@echo "Uninstalling classes library..."
-	rm -f $(INSTALL_PREFIX)/include/trampolines/*.h
-	rm -f $(INSTALL_PREFIX)/lib/libtrampolines.a
-	rm -f $(INSTALL_PREFIX)/lib/libtrampolines.$(DYLIB_EXT)
-	rmdir $(INSTALL_PREFIX)/include/trampolines 2>/dev/null || true
+	rm -f $(INSTALL_INC_DIR)/trampolines/*.h
+	rm -f $(INSTALL_LIB_DIR)/libtrampolines.a
+	rm -f $(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT)
+	rmdir $(INSTALL_INC_DIR)/trampolines 2>/dev/null || true
 
 # Clean
 clean:

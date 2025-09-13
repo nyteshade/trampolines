@@ -32,6 +32,8 @@ endif
 # Directories
 LIB_DIR = lib
 INSTALL_PREFIX = /usr/local
+INSTALL_INC_DIR = $(INSTALL_PREFIX)/include
+INSTALL_LIB_DIR = $(INSTALL_PREFIX)/lib
 
 # Core library files
 CORE_SRCS = $(ARCH_SRC) trampoline_helpers.c
@@ -67,24 +69,24 @@ endif
 # Installation
 install: all
 	@echo "Installing core trampoline library..."
-	install -d $(INSTALL_PREFIX)/include
-	install -d $(INSTALL_PREFIX)/lib
-	install -m 644 trampoline.h $(INSTALL_PREFIX)/include/
-	install -m 644 $(CORE_LIB_STATIC) $(INSTALL_PREFIX)/lib/
-	install -m 755 $(CORE_LIB_SHARED) $(INSTALL_PREFIX)/lib/
+	install -d $(INSTALL_INC_DIR)
+	install -d $(INSTALL_LIB_DIR)
+	install -m 644 trampoline.h $(INSTALL_INC_DIR)/
+	install -m 644 $(CORE_LIB_STATIC) $(INSTALL_LIB_DIR)/
+	install -m 755 $(CORE_LIB_SHARED) $(INSTALL_LIB_DIR)/
 ifeq ($(UNAME_S),Darwin)
 	@echo "Updating dylib install names..."
-	install_name_tool -id $(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT) \
-		$(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT)
+	install_name_tool -id $(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT) \
+		$(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT)
 endif
-	@echo "Core library installed to $(INSTALL_PREFIX)"
+	@echo "Core library installed to $(INSTALL_LIB_DIR), includes to $(INSTALL_INC_DIR)"
 
 # Uninstall
 uninstall:
 	@echo "Uninstalling core library..."
-	rm -f $(INSTALL_PREFIX)/include/trampoline.h
-	rm -f $(INSTALL_PREFIX)/lib/libtrampoline.a
-	rm -f $(INSTALL_PREFIX)/lib/libtrampoline.$(DYLIB_EXT)
+	rm -f $(INSTALL_INC_DIR)/trampoline.h
+	rm -f $(INSTALL_LIB_DIR)/libtrampoline.a
+	rm -f $(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT)
 
 # Clean
 clean:
