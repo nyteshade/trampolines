@@ -264,6 +264,7 @@ static TF_Getter(networkrequest_bodyLength, NetworkRequest, NetworkRequestPrivat
 }
 
 static TF_Unary(void, networkrequest_setBodyString, NetworkRequest, NetworkRequestPrivate, String*, str)
+    (void)private; /* Suppress unused warning */
     if (str && str->cStr) {
         networkrequest_setBody(self, str->cStr());
     } else {
@@ -324,15 +325,26 @@ static TF_Unary(void, networkrequest_removeHeader, NetworkRequest, NetworkReques
 NetworkResponse* NetworkResponseMake(int status_code, const char* status_text, const char* body);
 
 static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, NetworkResponse*)
+    bool use_ssl;
+    Connection* conn;
+    NetworkResponse* error_resp;
+    String* full_path;
+    char* header_string;
+    char* request;
+    ssize_t sent;
+    char buffer[65536];
+    size_t total_read = 0;
+    ssize_t bytes_read;
+    
     if (!private->url || !private->host) {
         return NetworkResponseMake(400, "Bad Request", "Invalid URL");
     }
     
     /* Determine if we need SSL */
-    bool use_ssl = (strcmp(private->scheme, "https") == 0);
+    use_ssl = (strcmp(private->scheme, "https") == 0);
     
     /* Create connection */
-    Connection* conn = connection_create(private->host, private->port, use_ssl);
+    conn = connection_create(private->host, private->port, use_ssl);
     if (!conn) {
         return NetworkResponseMake(500, "Internal Server Error", 
                                   "Failed to create connection");
@@ -343,24 +355,24 @@ static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, Net
     
     /* Connect to server */
     if (!connection_connect(conn)) {
-        NetworkResponse* error_resp = NetworkResponseMake(502, "Bad Gateway",
-                                                          connection_error(conn));
+        error_resp = NetworkResponseMake(502, "Bad Gateway",
+                                         connection_error(conn));
         connection_free(conn);
         return error_resp;
     }
     
     /* Build path with query */
-    String* full_path = StringMake(private->path ? private->path : "/");
+    full_path = StringMake(private->path ? private->path : "/");
     if (private->query) {
         full_path->append("?");
         full_path->append(private->query);
     }
     
     /* Build headers string */
-    char* header_string = build_header_string(private->headers);
+    header_string = build_header_string(private->headers);
     
     /* Build HTTP request */
-    char* request = http_build_request(
+    request = http_build_request(
         method_to_string(private->method),
         full_path->cStr(),
         private->host,
@@ -379,20 +391,17 @@ static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, Net
     }
     
     /* Send request */
-    ssize_t sent = connection_send(conn, request, strlen(request));
+    sent = connection_send(conn, request, strlen(request));
     free(request);
     
     if (sent < 0) {
-        NetworkResponse* error_resp = NetworkResponseMake(500, "Internal Server Error",
-                                                          connection_error(conn));
+        error_resp = NetworkResponseMake(500, "Internal Server Error",
+                                         connection_error(conn));
         connection_free(conn);
         return error_resp;
     }
     
     /* Read response */
-    char buffer[65536];
-    size_t total_read = 0;
-    ssize_t bytes_read;
     
     while (total_read < sizeof(buffer) - 1) {
         bytes_read = connection_recv(conn, buffer + total_read, 

@@ -157,6 +157,7 @@ static TF_Getter(networkresponse_bodyAsString, NetworkResponse, NetworkResponseP
 }
 
 static TF_Getter(networkresponse_contentType, NetworkResponse, NetworkResponsePrivate, const char*)
+    (void)private; /* Suppress unused warning */
     return networkresponse_header(self, "Content-Type");
 }
 
@@ -169,6 +170,7 @@ static TF_Getter(networkresponse_contentLength, NetworkResponse, NetworkResponse
 }
 
 static TF_Unary(int, networkresponse_hasHeader, NetworkResponse, NetworkResponsePrivate, const char*, key)
+    (void)private; /* Suppress unused warning */
     return networkresponse_header(self, key) != NULL;
 }
 

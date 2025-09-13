@@ -49,19 +49,6 @@ static bool string_ensure_capacity(StringPrivate* priv, size_t required) {
     return true;
 }
 
-static char* string_strdup(const char* str) {
-    size_t len;
-    char* copy;
-    
-    if (!str) return NULL;
-    len = strlen(str);
-    copy = malloc(len + 1);
-    if (copy) {
-        memcpy(copy, str, len + 1);
-    }
-    return copy;
-}
-
 static bool char_is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }
@@ -266,7 +253,6 @@ static TF_Dyadic(bool, string_replace_first, String, StringPrivate, const char*,
     size_t find_len;
     size_t replace_len;
     size_t new_len;
-    char* new_data;
     
     if (!find || !*find) return false;
     if (!replace) replace = "";
@@ -687,6 +673,7 @@ static TF_Dyadic(String**, string_split_any, String, StringPrivate, const char*,
 }
 
 static TF_Unary(String**, string_split_lines, String, StringPrivate, size_t*, out_count)
+    (void)private; /* Suppress unused warning */
     return string_split_any(self, "\r\n", out_count);
 }
 
@@ -754,10 +741,12 @@ static TF_Unary(int, string_compare_ignore_case, String, StringPrivate, const ch
 }
 
 static TF_Unary(bool, string_equals, String, StringPrivate, const char*, other)
+    (void)private; /* Suppress unused warning */
     return string_compare(self, other) == 0;
 }
 
 static TF_Unary(bool, string_equals_ignore_case, String, StringPrivate, const char*, other)
+    (void)private; /* Suppress unused warning */
     return string_compare_ignore_case(self, other) == 0;
 }
 
@@ -884,6 +873,7 @@ static TF_Getter(string_hash, String, StringPrivate, size_t)
 }
 
 static TF_Getter(string_to_string, String, StringPrivate, String*)
+    (void)private; /* Suppress unused warning */
     return string_clone(self);
 }
 
