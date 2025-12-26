@@ -1,4 +1,5 @@
 #include <trampoline.h>
+#include <stdlib.h>
 #include <stddef.h>
 
 #include <exec/exec.h>
@@ -10,57 +11,36 @@ typedef struct Pair_ {
   
   APTR left;
   APTR right;
-  
-  trampoline_allocations allocations;
 } Pair_;
 
-TRAMP_PROPERTY_(pair_left, Pair, Pair_, APTR, left);
-TRAMP_PROPERTY_(pair_right, Pair, Pair_, APTR, right);
+TI_Property(pair_get_left, pair_set_left, Pair, Pair_, APTR, left)
+TI_Property(pair_get_right, pair_set_right, Pair, Pair_, APTR, right)
 
-void pair_free(Pair* self) {
-  Pair_* private = (Pair_*)self;
-  int i = 0;
+TF_Nullary(pair_free, Pair, Pair_)
+  if (private) 
+    free(private);
+    
+  // do not attempt to also free self as it is included in private
+}
+
+Pair* PairMake() {  
+  TA_Allocate(Pair, Pair_);
   
-  for (i = 0; i < private->allocations.next; i++) {
-    if (private->allocations.pointers[i]) {
-      trampoline_free(private->allocations.pointers[i]);
+  if (private) {
+    private->left = NULL;
+    private->right = NULL;
+
+    TAProperty(left, setLeft, pair_get_left, pair_set_left);
+    TAProperty(right, setRight, pair_get_right, pair_set_right);
+    TAFunction(free, pair_free);
+    
+    if (!trampoline_validate(tracker)) {
+      free(private);
+      public = NULL;
     }
   }
   
-  free(private);
-}
-
-Pair* PairMake() {
-  Pair_* pair_ = (Pair_*)AllocVec(sizeof(Pair_), MEMF_PUBLIC|MEMF_CLEAR);
-  Pair* pair = NULL;
-  
-  if (pair_) {
-    pair = (Pair*)pair_;
-    
-    pair->left = trampoline_create_and_track(
-      get_private_pair_left, pair, &pair_->allocations
-    );
-    
-    pair->right = trampoline_create_and_track(
-      get_private_pair_right, pair, &pair_->allocations
-    );
-    
-    pair->setLeft = trampoline_create_and_track(
-      set_private_pair_left, pair, &pair_->allocations
-    );
-    
-    pair->setRight = trampoline_create_and_track(
-      set_private_pair_right, pair, &pair_->allocations
-    );
-    
-    pair->free = trampoline_create_and_track(
-      pair_free, pair, &pair_->allocations
-    );
-
-    return (Pair*)pair_;
-  }
- 
-  return NULL;
+  return public;
 }
 
 Pair* PairFrom(APTR left, APTR right) {

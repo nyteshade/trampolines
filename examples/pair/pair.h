@@ -1,16 +1,13 @@
 #ifndef TRAMPOLINE_PAIR_H
 #define TRAMPOLINE_PAIR_H
 
+#include <trampoline.h>
 #include <exec/types.h>
 
 typedef struct Pair {
-  APTR (*left)();
-  APTR (*right)();
-  
-  void (*setLeft)(APTR left);
-  void (*setRight)(APTR right);
-  
-  void (*free)();
+  TDProperty(left, setLeft, APTR);
+  TDProperty(right, setRight, APTR);
+  TDVoidFunc(free);
 } Pair;
 
 Pair* PairMake();

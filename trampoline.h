@@ -412,45 +412,66 @@ int trampoline_validate(TTTracker* tracker);
 // TDxx Trampoline Declarator (these are fine as-is)
 
 #define TDGetter(getter, type) \
-  type (*getter)(void);
+  type (*getter)(void)
 
 #define TDStringGetter(getter) \
-  const char* (*getter)(void);
+  const char* (*getter)(void)
 
 #define TDSetter(setter, type) \
-  void (*setter)(type);
+  void (*setter)(type)
 
 #define TDStringSetter(setter) \
-  void (*setter)(const char*);
+  void (*setter)(const char*)
 
 #define TDProperty(getter, setter, type) \
   type (*getter)(void); \
-  void (*setter)(type);
+  void (*setter)(type)
 
 #define TDStringProperty(getter, setter) \
   const char* (*getter)(void); \
-  void (*setter)(const char*);
+  void (*setter)(const char*)
 
 #define TDNullary(nullary) \
-  void (*nullary)(void);
+  void (*nullary)(void)
 
 #define TDUnary(return_type, unary, type) \
-  return_type (*unary)(type);
+  return_type (*unary)(type)
 
 #define TDDyadic(return_type, dyadic, type1, type2) \
-  return_type (*dyadic)(type1, type2);
+  return_type (*dyadic)(type1, type2)
 
 #define TDTriadic(return_type, triadic, type1, type2, type3) \
-  return_type (*triadic)(type1, type2, type3);
+  return_type (*triadic)(type1, type2, type3)
 
 #define TDTetradic(return_type, tetradic, type1, type2, type3, type4) \
-  return_type (*tetradic)(type1, type2, type3, type4);
+  return_type (*tetradic)(type1, type2, type3, type4)
 
 #define TDPentadic(return_type, pentadic, type1, type2, type3, type4, type5) \
-  return_type (*pentadic)(type1, type2, type3, type4, type5);
+  return_type (*pentadic)(type1, type2, type3, type4, type5)
 
 #define TDHexadic(return_type, hexadic, type1, type2, type3, type4, type5, type6) \
-  return_type (*hexadic)(type1, type2, type3, type4, type5, type6);
+  return_type (*hexadic)(type1, type2, type3, type4, type5, type6)
+
+#define TDVoidFunc(fnName) \
+  TDNullary(fnName)
+
+#define TD1ArgFunc(return_type, fnName, type) \
+  TDUnary(return_type, fnName, type)
+
+#define TD2ArgFunc(return_type, dyadic, type1, type2) \
+  TDDyadic(return_type, dyadic, type1, type2)
+
+#define TD3ArgFunc(return_type, fnName, type1, type2, type3) \
+  TDTriadic(return_type, fnName, type1, type2, type3)
+
+#define TD4ArgFunc(return_type, fnName, type1, type2, type3, type4) \
+  TDTetradic(return_type, fnName, type1, type2, type3, type4)
+
+#define TD5ArgFunc(return_type, fnName, type1, type2, type3, type4, type5) \
+  TDPentadic(return_type, fnName, type1, type2, type3, type4, type5)
+
+#define TD6ArgFunc(return_type, fnName, type1, type2, type3, type4, type5, type6) \
+  TDHexadic(return_type, fnName, type1, type2, type3, type4, type5, type6)
 
 // TIxx Trampoline Implementor (corrected)
 
@@ -553,12 +574,12 @@ int trampoline_validate(TTTracker* tracker);
 
 #define TAAllocate(public_struct) \
   public_struct* public = calloc(1, sizeof(public_struct)); \
-  TTTracker* tracker = NULL;
+  TTTracker* tracker = NULL
 
 #define TA_Allocate(public_struct, private_struct) \
   private_struct* private = calloc(1, sizeof(private_struct)); \
   public_struct* public = (public_struct*)private; \
-  TTTracker* tracker = NULL;
+  TTTracker* tracker = NULL
 
 // Helper macros for actually tracking trampolines during allocation
 //
@@ -566,16 +587,29 @@ int trampoline_validate(TTTracker* tracker);
 
 #define TATrackTrampoline(trampoline_ptr, func_name, real_func, context, argc) \
   trampoline_ptr = trampoline_create(real_func, context, argc); \
-  trampoline_track(trampoline_ptr, context);
+  trampoline_track(trampoline_ptr, context)
+
+#define TAFunction(public_fn, impl_fn, argc) \
+  public->public_fn = trampoline_monitor(impl_fn, public, argc, &tracker)
+
+#define TAProperty(public_getter, public_setter, impl_getter, impl_setter, argc) \
+  public->public_getter = trampoline_monitor(impl_getter, public, argc, &tracker); \
+  public->public_setter = trampoline_monitor(impl_setter, public, argc, &tracker)
 
 #else
+
+#define TAFunction(public_fn, impl_fn) \
+  public->public_fn = trampoline_monitor(impl_fn, public, &tracker)
+
+#define TAProperty(public_getter, public_setter, impl_getter, impl_setter) \
+  public->public_getter = trampoline_monitor(impl_getter, public, &tracker); \
+  public->public_setter = trampoline_monitor(impl_setter, public, &tracker)
 
 #define TATrackTrampoline(trampoline_ptr, func_name, real_func, context) \
   trampoline_ptr = trampoline_create(real_func, context); \
   trampoline_track(trampoline_ptr, context);
 
 #endif
-
 
 // TFxx Trampoline Function (corrected)
 
@@ -593,7 +627,6 @@ int trampoline_validate(TTTracker* tracker);
 #define TF_Setter(setter, context_type, private_context, variable_type) \
   void setter(context_type* self, variable_type newValue) {\
     private_context* private = (private_context*)self;
-
 
 #define TFNullary(nullary, context_type) \
   void nullary(context_type* self)
@@ -710,6 +743,159 @@ int trampoline_validate(TTTracker* tracker);
     variable4_type variable4_name, \
     variable5_type variable5_name, \
     variable6_type variable6_name \
+  )
+
+#define TFVoidFunc(nullary, context_type) \
+  TFNullary(nullary, context_type)
+
+#define TF1ArgFunc(\
+  return_type, \
+  unary, \
+  context_type, \
+  variable_type, \
+  variable_name \
+) \
+  TFUnary(\
+    return_type, \
+    unary, \
+    context_type, \
+    variable_type, \
+    variable_name \
+  )
+
+#define TF2ArgFunc(\
+  return_type, \
+  dyadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name \
+) \
+  TFDyadic(\
+    return_type, \
+    dyadic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name \
+  )
+
+#define TF3ArgFunc(\
+  return_type, \
+  triadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name \
+) \
+  TFTriadic(\
+    return_type, \
+    triadic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name \
+  )
+
+#define TF4ArgFunc(\
+  return_type, \
+  tetradic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name \
+) \
+  TFTetradic(\
+    return_type, \
+    tetradic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name \
+  )
+
+#define TF5ArgFunc(\
+  return_type, \
+  pentadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name, \
+  variable5_type, \
+  variable5_name \
+) \
+  TFPentadic(\
+    return_type, \
+    pentadic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name, \
+    variable5_type, \
+    variable5_name \
+  )
+
+#define TF6ArgFunc(\
+  return_type, \
+  hexadic, \
+  context_type, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name, \
+  variable5_type, \
+  variable5_name, \
+  variable6_type, \
+  variable6_name \
+) \
+  TFHexadic(\
+    return_type, \
+    hexadic, \
+    context_type, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name, \
+    variable5_type, \
+    variable5_name, \
+    variable6_type, \
+    variable6_name \
   )
 
 // Private variants with underscore (TF_xx)
@@ -843,6 +1029,171 @@ int trampoline_validate(TTTracker* tracker);
     variable6_type variable6_name \
   ) { \
     private_context* private = (private_context*)self;
+
+#define TF_VoidFunc(nullary, public_context, private_context) \
+  TF_Nullary(nullary, public_context, private_context)
+
+#define TF_1ArgFunc(\
+  return_type, \
+  unary, \
+  public_context, \
+  private_context, \
+  variable_type, \
+  variable_name \
+) \
+  TF_Unary(\
+    return_type, \
+    unary, \
+    public_context, \
+    private_context, \
+    variable_type, \
+    variable_name \
+  )
+
+#define TF_2ArgFunc(\
+  return_type, \
+  dyadic, \
+  public_context, \
+  private_context, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name \
+) \
+  TF_Dyadic(\
+    return_type, \
+    dyadic, \
+    public_context, \
+    private_context, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name \
+  )
+
+#define TF_3ArgFunc(\
+  return_type, \
+  triadic, \
+  public_context, \
+  private_context, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name \
+) \
+  TF_Triadic(\
+    return_type, \
+    triadic, \
+    public_context, \
+    private_context, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name \
+  )
+
+#define TF_4ArgFunc(\
+  return_type, \
+  tetradic, \
+  public_context, \
+  private_context, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name \
+) \
+  TF_Tetradic(\
+    return_type, \
+    tetradic, \
+    public_context, \
+    private_context, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name \
+  )
+
+#define TF_5ArgFunc(\
+  return_type, \
+  pentadic, \
+  public_context, \
+  private_context, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name, \
+  variable5_type, \
+  variable5_name \
+) \
+  TF_Pentadic(\
+    return_type, \
+    pentadic, \
+    public_context, \
+    private_context, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name, \
+    variable5_type, \
+    variable5_name \
+  )
+
+#define TF_6ArgFunc(\
+  return_type, \
+  hexadic, \
+  public_context, \
+  private_context, \
+  variable1_type, \
+  variable1_name, \
+  variable2_type, \
+  variable2_name, \
+  variable3_type, \
+  variable3_name, \
+  variable4_type, \
+  variable4_name, \
+  variable5_type, \
+  variable5_name, \
+  variable6_type, \
+  variable6_name \
+) \
+  TF_Hexadic(\
+    return_type, \
+    hexadic, \
+    public_context, \
+    private_context, \
+    variable1_type, \
+    variable1_name, \
+    variable2_type, \
+    variable2_name, \
+    variable3_type, \
+    variable3_name, \
+    variable4_type, \
+    variable4_name, \
+    variable5_type, \
+    variable5_name, \
+    variable6_type, \
+    variable6_name \
+  )
 
 // Note: The TF_ variants intentionally leave the opening brace
 // so the user can provide the implementation body
