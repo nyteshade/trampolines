@@ -1,0 +1,4 @@
+--target=m68k-unknown-elf
+-nostdinc
+-I/Users/brie/sasc658/include
+-D__AMIGA__

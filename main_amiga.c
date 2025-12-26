@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <exec/types.h>
 #include <trampoline.h>
-#include <trampoline_m68k_debug.h>
 
 /* gcc -o trampoline main.c trampoline_m68k.c -Iram: -noixemul */
 
@@ -28,7 +27,7 @@ const char* _awin_getName(struct AWindow *self) {
   );
 
   if (self && self->title) {
-    return self->title;
+    return (char *)self->title;
   }
 
   return NULL;
@@ -88,8 +87,6 @@ AWindow* AWindowCreate(const char *title) {
     printf("   ...trampoline setTitle is %p\n", context->setTitle);
     printf("   ...trampoline free is %p\n", context->free);
 
-    printf("   ...dumping setTitle trampoline\n\n");
-    dump_tramp("setTitle", context->setTitle, 32);
     printf("\n");
 
     printf("   ...setting title to %s\n", title);
@@ -116,6 +113,7 @@ int main() {
 
     printf("\nCreating first AWindow object\n");
     awin1 = AWindowCreate(title1);
+
     printf("Creating first AWindow object\n");
     awin2 = AWindowCreate(title2);
 
@@ -128,12 +126,12 @@ int main() {
 
     // Verify the trampolines are at different memory locations
     if (awin1) {
-      printf("AWindow no.1 has the title -> %s\n", awin1->getTitle());
+      printf("AWindow no.1 has the title -> %s\n", (char *)awin1->getTitle());
       awin1->free();
     }
 
     if (awin2) {
-      printf("AWindow no.2 has the title -> %s\n", awin2->getTitle());
+      printf("AWindow no.2 has the title -> %s\n", (char *)awin2->getTitle());
       awin2->free();
     }
 
