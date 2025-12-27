@@ -20,35 +20,42 @@ endif
 # Detect architecture for source selection
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),x86_64)
-    ARCH_SRC = trampoline_x86_64.c
+    ARCH_SRC = src/trampoline_x86_64.c
 else ifeq ($(UNAME_M),arm64)
-    ARCH_SRC = trampoline_arm64.c
+    ARCH_SRC = src/trampoline_arm64.c
 else ifeq ($(UNAME_M),aarch64)
-    ARCH_SRC = trampoline_arm64.c
+    ARCH_SRC = src/trampoline_arm64.c
 else ifeq ($(UNAME_M),x86)
-    ARCH_SRC = trampoline_x86.c
+    ARCH_SRC = src/trampoline_x86.c
 else ifeq ($(UNAME_M),i386)
-    ARCH_SRC = trampoline_x86.c
+    ARCH_SRC = src/trampoline_x86.c
 else ifeq ($(UNAME_M),ppc)
-    ARCH_SRC = trampoline_ppc.c
+    ARCH_SRC = src/trampoline_ppc.c
 else ifeq ($(UNAME_M),ppc64)
-    ARCH_SRC = trampoline_ppc64.c
+    ARCH_SRC = src/trampoline_ppc64.c
 else ifeq ($(UNAME_M),arm)
-    ARCH_SRC = trampoline_arm32.c
+    ARCH_SRC = src/trampoline_arm32.c
 else ifeq ($(UNAME_M),arm32)
-    ARCH_SRC = trampoline_arm32.c
+    ARCH_SRC = src/trampoline_arm32.c
 else
     $(error Unsupported architecture: $(UNAME_M))
 endif
 
+# Dynamically find the Homebrew prefix
+BREW_PREFIX := $(shell brew --prefix)
+
+# Use that prefix to set your paths
+LDFLAGS += -L$(BREW_PREFIX)/lib
+RPATH_FLAGS = -Wl,-rpath,$(BREW_PREFIX)/lib -Wl,-rpath,/usr/local/lib
+
 # Directories
 LIB_DIR = lib
 INSTALL_PREFIX = /usr/local
-INSTALL_INC_DIR = $(INSTALL_PREFIX)/include
+INSTALL_INC_DIR = $(INSTALL_PREFIX)/include/trampoline
 INSTALL_LIB_DIR = $(INSTALL_PREFIX)/lib
 
 # Core library files
-CORE_SRCS = $(ARCH_SRC) trampoline_helpers.c
+CORE_SRCS = $(ARCH_SRC) src/trampoline_helpers.c
 CORE_OBJS = $(CORE_SRCS:.c=.o)
 CORE_LIB_STATIC = $(LIB_DIR)/libtrampoline.a
 CORE_LIB_SHARED = $(LIB_DIR)/libtrampoline.$(DYLIB_EXT)
@@ -68,7 +75,7 @@ $(CORE_LIB_STATIC): $(CORE_OBJS) | $(LIB_DIR)
 # Build shared library
 $(CORE_LIB_SHARED): $(CORE_OBJS) | $(LIB_DIR)
 ifeq ($(UNAME_S),Darwin)
-	$(CC) $(LDFLAGS) -install_name @rpath/libtrampoline.$(DYLIB_EXT) -o $@ $^
+	$(CC) $(LDFLAGS) $(RPATH_FLAGS) -install_name @rpath/libtrampoline.$(DYLIB_EXT) -o $@ $^
 else
 	$(CC) $(LDFLAGS) -o $@ $^
 endif
@@ -83,7 +90,8 @@ install: all
 	@echo "Installing core trampoline library..."
 	install -d $(INSTALL_INC_DIR)
 	install -d $(INSTALL_LIB_DIR)
-	install -m 644 trampoline.h $(INSTALL_INC_DIR)/
+	install -m 644 src/trampoline.h $(INSTALL_INC_DIR)/
+	install -m 644 src/macros.h $(INSTALL_INC_DIR)/
 	install -m 644 $(CORE_LIB_STATIC) $(INSTALL_LIB_DIR)/
 	install -m 755 $(CORE_LIB_SHARED) $(INSTALL_LIB_DIR)/
 ifeq ($(UNAME_S),Darwin)
@@ -97,22 +105,23 @@ endif
 uninstall:
 	@echo "Uninstalling core library..."
 	rm -f $(INSTALL_INC_DIR)/trampoline.h
+	rm -f $(INSTALL_INC_DIR)/macros.h
 	rm -f $(INSTALL_LIB_DIR)/libtrampoline.a
 	rm -f $(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT)
 
 # Clean
 clean:
-	rm -f *.o
+	rm -f src/*.o
 	rm -rf $(LIB_DIR)
 
 # Build all (core + classes)
 all-with-classes: all
 	@echo "Building classes library..."
-	$(MAKE) -C trampolines all
+	$(MAKE) -C src/classes all
 
 # Install all (core + classes)
 install-all: install
-	$(MAKE) -C trampolines install
+	$(MAKE) -C src/classes install
 
 # Help
 help:

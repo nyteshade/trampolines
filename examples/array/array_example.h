@@ -1,7 +1,7 @@
 #ifndef PTR_ARRAY_EXAMPLE_H
 #define PTR_ARRAY_EXAMPLE_H
 
-#include <trampoline.h>
+#include <trampoline/macros.h>
 #include <stddef.h>
 
 typedef struct PtrArray {

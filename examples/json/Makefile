@@ -3,9 +3,9 @@
 # Compiler and flags
 CC = cc
 CFLAGS = -Wall -Wextra -O2 -g
-INCLUDES = -I../../trampolines/include -I../..
+INCLUDES = -I../../src/classes/include -I../../src
 LDFLAGS = -L../../lib
-LIBS = -ltrampolines -ltrampoline
+LIBS = -ltrampoline -ltrampolineclasses
 
 # Targets
 DEMO = json_demo

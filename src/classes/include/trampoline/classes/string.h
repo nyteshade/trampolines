@@ -13,7 +13,8 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <trampoline.h>  /* Expects trampoline.h in system includes */
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
 #include <stddef.h>
 
 /* C89-compatible boolean type */
@@ -69,7 +70,7 @@
  * String* trimmed = name->trim();
  * String* upper = trimmed->toUpperCase();
  * printf("Formatted: %s\n", upper->cStr()); // "JOHN DOE"
- * 
+ *
  * name->free();
  * trimmed->free();
  * upper->free();
@@ -81,10 +82,10 @@
  * builder->appendFormat("User: %s, ", username);
  * builder->appendFormat("ID: %d, ", userId);
  * builder->appendFormat("Score: %.2f", score);
- * 
+ *
  * String* result = builder->toString();
  * printf("%s\n", result->cStr());
- * 
+ *
  * builder->free();
  * result->free();
  * @endcode
@@ -93,57 +94,57 @@ typedef struct String {
   /* ================================================================ */
   /* Core String Access                        */
   /* ================================================================ */
-  
+
   /**
    * @brief Get the C string pointer (null-terminated)
    * @return Const pointer to internal string buffer
    * @note String is always null-terminated for C compatibility
    */
   TDGetter(cStr, const char*);
-  
+
   /**
    * @brief Get the length of the string (excluding null terminator)
    * @return Number of characters in the string
    */
   TDGetter(length, size_t);
-  
+
   /**
    * @brief Get the capacity of the internal buffer
    * @return Current allocated size including null terminator
    */
   TDGetter(capacity, size_t);
-  
+
   /**
    * @brief Check if the string is empty
    * @return true if length is 0, false otherwise
    */
   TDGetter(isEmpty, bool);
-  
+
   /**
    * @brief Get character at specific index
    * @param index Position in string (0-based)
    * @return Character at index, or '\0' if out of bounds
    */
   TDUnary(char, charAt, size_t);
-  
+
   /* ================================================================ */
   /* String Modification (In-Place)                  */
   /* ================================================================ */
-  
+
   /**
    * @brief Append a string to this string
    * @param str String to append (null-safe)
    * @return true if successful, false on error
    */
   TDUnary(bool, append, const char*);
-  
+
   /**
    * @brief Append a single character
    * @param ch Character to append
    * @return true if successful, false on error
    */
   TDUnary(bool, appendChar, char);
-  
+
   /**
    * @brief Append formatted string (like sprintf)
    * @param format Printf-style format string
@@ -152,14 +153,14 @@ typedef struct String {
    * @note This uses variadic arguments which aren't covered by TDxx macros
    */
   bool (*appendFormat)(const char* format, ...);
-  
+
   /**
    * @brief Prepend a string to the beginning
    * @param str String to prepend (null-safe)
    * @return true if successful, false on error
    */
   TDUnary(bool, prepend, const char*);
-  
+
   /**
    * @brief Insert string at specific position
    * @param index Position to insert at (0 = beginning)
@@ -167,7 +168,7 @@ typedef struct String {
    * @return true if successful, false on error or invalid index
    */
   TDDyadic(bool, insert, size_t, const char*);
-  
+
   /**
    * @brief Replace all occurrences of a substring
    * @param find String to search for
@@ -175,7 +176,7 @@ typedef struct String {
    * @return Number of replacements made
    */
   TDDyadic(size_t, replace, const char*, const char*);
-  
+
   /**
    * @brief Replace first occurrence of a substring
    * @param find String to search for
@@ -183,38 +184,38 @@ typedef struct String {
    * @return true if replacement made, false if not found
    */
   TDDyadic(bool, replaceFirst, const char*, const char*);
-  
+
   /**
    * @brief Clear the string (make it empty)
    */
   TDNullary(clear);
-  
+
   /**
    * @brief Set this string to a new value
    * @param str New string value (will be copied)
    * @return true if successful, false on error
    */
   TDUnary(bool, set, const char*);
-  
+
   /**
    * @brief Reverse the string in place
    */
   TDNullary(reverse);
-  
+
   /**
    * @brief Convert to uppercase in place
    */
   TDNullary(toUpperCaseInPlace);
-  
+
   /**
    * @brief Convert to lowercase in place
    */
   TDNullary(toLowerCaseInPlace);
-  
+
   /* ================================================================ */
   /* String Creation (Returns New String)              */
   /* ================================================================ */
-  
+
   /**
    * @brief Create a substring from start index to end
    * @param start Starting index (inclusive)
@@ -222,107 +223,107 @@ typedef struct String {
    * @return New String object or NULL on error
    */
   TDDyadic(struct String*, substring, size_t, size_t);
-  
+
   /**
    * @brief Create a new string with whitespace removed from both ends
    * @return New trimmed String object
    */
   TDGetter(trim, struct String*);
-  
+
   /**
    * @brief Create a new string with whitespace removed from left
    * @return New trimmed String object
    */
   TDGetter(trimLeft, struct String*);
-  
+
   /**
    * @brief Create a new string with whitespace removed from right
    * @return New trimmed String object
    */
   TDGetter(trimRight, struct String*);
-  
+
   /**
    * @brief Create uppercase copy of this string
    * @return New uppercase String object
    */
   TDGetter(toUpperCase, struct String*);
-  
+
   /**
    * @brief Create lowercase copy of this string
    * @return New lowercase String object
    */
   TDGetter(toLowerCase, struct String*);
-  
+
   /**
    * @brief Create a copy of this string
    * @return New String object with same content
    */
   TDGetter(clone, struct String*);
-  
+
   /**
    * @brief Repeat this string n times
    * @param count Number of repetitions
    * @return New String with repeated content
    */
   TDUnary(struct String*, repeat, size_t);
-  
+
   /* ================================================================ */
   /* String Searching                        */
   /* ================================================================ */
-  
+
   /**
    * @brief Check if string contains a substring
    * @param needle Substring to search for
    * @return true if found, false otherwise
    */
   TDUnary(bool, contains, const char*);
-  
+
   /**
    * @brief Check if string starts with a prefix
    * @param prefix String to check at beginning
    * @return true if string starts with prefix
    */
   TDUnary(bool, startsWith, const char*);
-  
+
   /**
    * @brief Check if string ends with a suffix
    * @param suffix String to check at end
    * @return true if string ends with suffix
    */
   TDUnary(bool, endsWith, const char*);
-  
+
   /**
    * @brief Find first occurrence of substring
    * @param needle String to search for
    * @return Index of first occurrence, or (size_t)-1 if not found
    */
   TDUnary(size_t, indexOf, const char*);
-  
+
   /**
    * @brief Find last occurrence of substring
    * @param needle String to search for
    * @return Index of last occurrence, or (size_t)-1 if not found
    */
   TDUnary(size_t, lastIndexOf, const char*);
-  
+
   /**
    * @brief Find first occurrence of any character in set
    * @param chars Set of characters to search for
    * @return Index of first match, or (size_t)-1 if not found
    */
   TDUnary(size_t, indexOfAny, const char*);
-  
+
   /**
    * @brief Count occurrences of substring
    * @param needle Substring to count
    * @return Number of non-overlapping occurrences
    */
   TDUnary(size_t, count, const char*);
-  
+
   /* ================================================================ */
   /* String Splitting and Joining                  */
   /* ================================================================ */
-  
+
   /**
    * @brief Split string by delimiter
    * @param delimiter String to split on
@@ -330,7 +331,7 @@ typedef struct String {
    * @return Array of new String objects (caller must free array and strings)
    */
   TDDyadic(struct String**, split, const char*, size_t*);
-  
+
   /**
    * @brief Split string by any character in set
    * @param chars Set of delimiter characters
@@ -338,14 +339,14 @@ typedef struct String {
    * @return Array of new String objects (caller must free array and strings)
    */
   TDDyadic(struct String**, splitAny, const char*, size_t*);
-  
+
   /**
    * @brief Split string into lines
    * @param out_count Pointer to store number of lines
    * @return Array of new String objects (caller must free array and strings)
    */
   TDUnary(struct String**, splitLines, size_t*);
-  
+
   /**
    * @brief Join array of strings with this string as separator
    * @param strings Array of String objects to join
@@ -353,130 +354,130 @@ typedef struct String {
    * @return New joined String object
    */
   TDDyadic(struct String*, join, struct String**, size_t);
-  
+
   /* ================================================================ */
   /* String Comparison                         */
   /* ================================================================ */
-  
+
   /**
    * @brief Compare with another string (case-sensitive)
    * @param other String to compare with
    * @return 0 if equal, <0 if this<other, >0 if this>other
    */
   TDUnary(int, compare, const char*);
-  
+
   /**
    * @brief Compare with another string (case-insensitive)
    * @param other String to compare with
    * @return 0 if equal, <0 if this<other, >0 if this>other
    */
   TDUnary(int, compareIgnoreCase, const char*);
-  
+
   /**
    * @brief Check if equal to another string
    * @param other String to compare with
    * @return true if strings are equal
    */
   TDUnary(bool, equals, const char*);
-  
+
   /**
    * @brief Check if equal to another string (case-insensitive)
    * @param other String to compare with
    * @return true if strings are equal ignoring case
    */
   TDUnary(bool, equalsIgnoreCase, const char*);
-  
+
   /* ================================================================ */
   /* String Utilities                        */
   /* ================================================================ */
-  
+
   /**
    * @brief Check if string represents a valid integer
    * @return true if string can be parsed as integer
    */
   TDGetter(isInteger, bool);
-  
+
   /**
    * @brief Check if string represents a valid float
    * @return true if string can be parsed as float
    */
   TDGetter(isFloat, bool);
-  
+
   /**
    * @brief Check if string contains only alphabetic characters
    * @return true if all characters are letters
    */
   TDGetter(isAlpha, bool);
-  
+
   /**
    * @brief Check if string contains only digits
    * @return true if all characters are digits
    */
   TDGetter(isDigit, bool);
-  
+
   /**
    * @brief Check if string contains only alphanumeric characters
    * @return true if all characters are letters or digits
    */
   TDGetter(isAlphaNumeric, bool);
-  
+
   /**
    * @brief Check if string contains only whitespace
    * @return true if all characters are whitespace
    */
   TDGetter(isWhitespace, bool);
-  
+
   /**
    * @brief Convert string to integer
    * @param default_value Value to return if conversion fails
    * @return Parsed integer or default_value
    */
   TDUnary(int, toInt, int);
-  
+
   /**
    * @brief Convert string to float
    * @param default_value Value to return if conversion fails
    * @return Parsed float or default_value
    */
   TDUnary(float, toFloat, float);
-  
+
   /**
    * @brief Convert string to double
    * @param default_value Value to return if conversion fails
    * @return Parsed double or default_value
    */
   TDUnary(double, toDouble, double);
-  
+
   /**
    * @brief Calculate hash code for the string
    * @return Hash value suitable for hash tables
    */
   TDGetter(hash, size_t);
-  
+
   /**
    * @brief Get a read-only version of the string
    * @return New String that cannot be modified
    * @note Not enforced by compiler, but convention
    */
   TDGetter(toString, struct String*);
-  
+
   /* ================================================================ */
   /* Memory Management                         */
   /* ================================================================ */
-  
+
   /**
    * @brief Reserve capacity for string growth
    * @param new_capacity Minimum capacity to ensure
    * @return true if successful, false on allocation failure
    */
   TDUnary(bool, reserve, size_t);
-  
+
   /**
    * @brief Shrink capacity to fit current string length
    * @return true if successful, false on error
    */
   TDGetter(shrinkToFit, bool);
-  
+
   /**
    * @brief Free the String and all resources
    * @warning Do not use the object after calling this

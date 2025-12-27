@@ -1,12 +1,12 @@
 #ifndef ARRAY_EXAMPLE_IMPL_C
 #define ARRAY_EXAMPLE_IMPL_C
 
-#include <trampoline.h>
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
 #include <stdlib.h>
 #include <stddef.h>
 
 #include "array_example.h"
-#include "trampoline.h"
 
 typedef struct PtrArray_ {
   PtrArray public;

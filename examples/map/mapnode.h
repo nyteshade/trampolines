@@ -21,7 +21,8 @@
 #ifndef MAPNODE_H
 #define MAPNODE_H
 
-#include "../../trampoline.h"
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -67,17 +68,17 @@ typedef enum MapNodeType {
  * @code
  * void* key = MapNodeFromString("username");
  * void* value = MapNodeFromInt(42);
- * 
+ *
  * // Can treat as void* for APIs
  * map->put(key, value);
- * 
+ *
  * // Or cast to get rich interface
  * MapNode* smart_key = MapNode_Cast(key);
  * if (smart_key) {
- *     printf("Key: %s (size: %zu)\n", 
+ *     printf("Key: %s (size: %zu)\n",
  *            smart_key->asString(), smart_key->size());
  * }
- * 
+ *
  * MapNode_Free(key);
  * MapNode_Free(value);
  * @endcode
@@ -88,32 +89,32 @@ typedef struct MapNode {
      * @return Integer value, or 0 if not an integer type
      */
     int (*asInt)();
-    
+
     /**
      * @brief Get the value as a float
      * @return Float value, or 0.0f if not a float type
      */
     float (*asFloat)();
-    
+
     /**
      * @brief Get the value as a double
      * @return Double value, or 0.0 if not a double type
      */
     double (*asDouble)();
-    
+
     /**
      * @brief Get the value as a string
      * @return String pointer, or NULL if not a string type
      * @note Returned pointer is valid until the MapNode is freed
      */
     const char* (*asString)();
-    
+
     /**
      * @brief Get the value as a generic pointer
      * @return Pointer value, or NULL if not a pointer type
      */
     void* (*asPointer)();
-    
+
     /**
      * @brief Get the value as raw bytes
      * @param out_size Pointer to store the size of the data
@@ -121,68 +122,68 @@ typedef struct MapNode {
      * @note Returned pointer is valid until the MapNode is freed
      */
     const void* (*asBytes)(size_t* out_size);
-    
+
     /**
      * @brief Check if this is an integer type
      * @return true if integer, false otherwise
      */
     bool (*isInt)();
-    
+
     /**
      * @brief Check if this is a float type
      * @return true if float, false otherwise
      */
     bool (*isFloat)();
-    
+
     /**
-     * @brief Check if this is a double type  
+     * @brief Check if this is a double type
      * @return true if double, false otherwise
      */
     bool (*isDouble)();
-    
+
     /**
      * @brief Check if this is a string type
      * @return true if string, false otherwise
      */
     bool (*isString)();
-    
+
     /**
      * @brief Check if this is a pointer type
      * @return true if pointer, false otherwise
      */
     bool (*isPointer)();
-    
+
     /**
      * @brief Check if this is a raw bytes type
      * @return true if bytes, false otherwise
      */
     bool (*isBytes)();
-    
+
     /**
      * @brief Get a human-readable type name
      * @return String describing the type (e.g., "int", "string")
      */
     const char* (*typeName)();
-    
+
     /**
      * @brief Get the size of the stored data
      * @return Size in bytes of the stored data
      */
     size_t (*size)();
-    
+
     /**
      * @brief Get the MapNodeType enum value
      * @return MapNodeType enum corresponding to the stored type
      */
     MapNodeType (*type)();
-    
+
     /**
      * @brief Create a deep copy of this MapNode
      * @return New MapNode with copied data, or NULL on failure
      * @note Caller owns the returned MapNode and must free it
      */
     void* (*copy)();  /* Returns void* so it can be used directly with APIs */
-    
+
     /**
      * @brief Free this MapNode and all associated data
      * @warning Do not use the MapNode after calling this

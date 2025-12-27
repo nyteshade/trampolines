@@ -2,9 +2,10 @@
 /* JSON Trampoline Class Implementation                                    */
 /* ======================================================================== */
 
-#include <trampolines/json.h>
-#include <trampolines/string.h>
-#include <trampoline.h>
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
+#include <trampoline/classes/json.h>
+#include <trampoline/classes/string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

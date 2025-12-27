@@ -3,10 +3,11 @@
  * @brief Clean NetworkRequest implementation with SSL support
  */
 
-#include <trampolines/network.h>
-#include <trampolines/string.h>
-#include <trampolines/json.h>
-#include <trampoline.h>
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
+#include <trampoline/classes/json.h>
+#include <trampoline/classes/string.h>
+#include <trampoline/classes/network.h>
 #include "network_common.h"
 #include <stdlib.h>
 #include <string.h>
@@ -24,19 +25,19 @@ typedef struct RequestHeader {
 
 typedef struct NetworkRequestPrivate {
     NetworkRequest public;  /* Public interface MUST be first */
-    
+
     /* Request properties */
     char* url;
     HttpMethod method;
     RequestHeader* headers;
     char* body;
     size_t body_length;
-    
+
     /* Connection settings */
     int timeout_seconds;
     bool follow_redirects;
     int max_redirects;
-    
+
     /* Parsed URL components */
     char* scheme;
     char* host;
@@ -53,7 +54,7 @@ static const char* method_to_string(HttpMethod method) {
     static const char* methods[] = {
         "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"
     };
-    
+
     if (method >= 0 && method < sizeof(methods)/sizeof(methods[0])) {
         return methods[method];
     }
@@ -72,35 +73,35 @@ static void free_headers(RequestHeader* headers) {
 
 static bool parse_url_clean(const char* url, NetworkRequestPrivate* private) {
     if (!url || !private) return false;
-    
+
     /* Clean up any existing URL components */
     free(private->scheme);
     free(private->host);
     free(private->path);
     free(private->query);
-    
+
     private->scheme = NULL;
     private->host = NULL;
     private->path = NULL;
     private->query = NULL;
-    
+
     /* Make a working copy */
     char* work = strdup(url);
     if (!work) return false;
-    
+
     char* ptr = work;
-    
+
     /* Parse scheme */
     char* scheme_end = strstr(ptr, "://");
     if (!scheme_end) {
         free(work);
         return false;
     }
-    
+
     *scheme_end = '\0';
     private->scheme = strdup(ptr);
     ptr = scheme_end + 3;
-    
+
     /* Default port based on scheme */
     if (strcmp(private->scheme, "https") == 0) {
         private->port = 443;
@@ -109,16 +110,16 @@ static bool parse_url_clean(const char* url, NetworkRequestPrivate* private) {
     } else {
         private->port = 80;
     }
-    
+
     /* Parse host and port */
     char* path_start = strchr(ptr, '/');
     char* port_start = strchr(ptr, ':');
-    
+
     if (port_start && (!path_start || port_start < path_start)) {
         /* Host with port */
         *port_start = '\0';
         private->host = strdup(ptr);
-        
+
         ptr = port_start + 1;
         if (path_start) {
             *path_start = '\0';
@@ -141,7 +142,7 @@ static bool parse_url_clean(const char* url, NetworkRequestPrivate* private) {
             ptr = NULL;
         }
     }
-    
+
     /* Parse path and query */
     if (ptr) {
         char* query_start = strchr(ptr, '?');
@@ -155,7 +156,7 @@ static bool parse_url_clean(const char* url, NetworkRequestPrivate* private) {
     } else {
         private->path = strdup("/");
     }
-    
+
     free(work);
     return true;
 }
@@ -170,10 +171,10 @@ static RequestHeader* find_header(RequestHeader* headers, const char* key) {
     return NULL;
 }
 
-static void add_or_update_header(NetworkRequestPrivate* private, 
+static void add_or_update_header(NetworkRequestPrivate* private,
                                  const char* key, const char* value) {
     RequestHeader* existing = find_header(private->headers, key);
-    
+
     if (existing) {
         /* Update existing header */
         free(existing->value);
@@ -184,7 +185,7 @@ static void add_or_update_header(NetworkRequestPrivate* private,
         if (new_header) {
             new_header->key = strdup(key);
             new_header->value = strdup(value);
-            
+
             /* Add to front of list */
             new_header->next = private->headers;
             private->headers = new_header;
@@ -200,19 +201,19 @@ static char* build_header_string(RequestHeader* headers) {
         total_size += strlen(h->key) + strlen(h->value) + 4; /* ": \r\n" */
         h = h->next;
     }
-    
+
     if (total_size == 0) return NULL;
-    
+
     char* result = malloc(total_size + 1);
     if (!result) return NULL;
-    
+
     char* ptr = result;
     h = headers;
     while (h) {
         ptr += sprintf(ptr, "%s: %s\r\n", h->key, h->value);
         h = h->next;
     }
-    
+
     return result;
 }
 
@@ -227,7 +228,7 @@ static TF_Getter(networkrequest_url, NetworkRequest, NetworkRequestPrivate, cons
 static TF_Setter(networkrequest_setUrl, NetworkRequest, NetworkRequestPrivate, const char*)
     free(private->url);
     private->url = newValue ? strdup(newValue) : NULL;
-    
+
     /* Re-parse URL */
     if (private->url) {
         parse_url_clean(private->url, private);
@@ -275,9 +276,9 @@ static TF_Unary(void, networkrequest_setBodyString, NetworkRequest, NetworkReque
 
 static TF_Unary(void, networkrequest_setBodyJson, NetworkRequest, NetworkRequestPrivate, Json*, json)
     char* json_str;
-    
+
     (void)private; /* Suppress unused warning */
-    
+
     if (json) {
         json_str = json->stringify();
         if (json_str) {
@@ -322,7 +323,7 @@ static TF_Dyadic(void, networkrequest_setHeader, NetworkRequest, NetworkRequestP
 static TF_Unary(void, networkrequest_removeHeader, NetworkRequest, NetworkRequestPrivate, const char*, key)
     RequestHeader* prev = NULL;
     RequestHeader* current = private->headers;
-    
+
     while (current) {
         if (strcasecmp(current->key, key) == 0) {
             if (prev) {
@@ -354,24 +355,24 @@ static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, Net
     char buffer[65536];
     size_t total_read = 0;
     ssize_t bytes_read;
-    
+
     if (!private->url || !private->host) {
         return NetworkResponseMake(400, "Bad Request", "Invalid URL");
     }
-    
+
     /* Determine if we need SSL */
     use_ssl = (strcmp(private->scheme, "https") == 0);
-    
+
     /* Create connection */
     conn = connection_create(private->host, private->port, use_ssl);
     if (!conn) {
-        return NetworkResponseMake(500, "Internal Server Error", 
+        return NetworkResponseMake(500, "Internal Server Error",
                                   "Failed to create connection");
     }
-    
+
     /* Set timeout */
     conn->timeout_seconds = private->timeout_seconds;
-    
+
     /* Connect to server */
     if (!connection_connect(conn)) {
         error_resp = NetworkResponseMake(502, "Bad Gateway",
@@ -379,17 +380,17 @@ static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, Net
         connection_free(conn);
         return error_resp;
     }
-    
+
     /* Build path with query */
     full_path = StringMake(private->path ? private->path : "/");
     if (private->query) {
         full_path->append("?");
         full_path->append(private->query);
     }
-    
+
     /* Build headers string */
     header_string = build_header_string(private->headers);
-    
+
     /* Build HTTP request */
     request = http_build_request(
         method_to_string(private->method),
@@ -399,39 +400,39 @@ static TF_Getter(networkrequest_send, NetworkRequest, NetworkRequestPrivate, Net
         private->body,
         private->body_length
     );
-    
+
     full_path->free();
     free(header_string);
-    
+
     if (!request) {
         connection_free(conn);
         return NetworkResponseMake(500, "Internal Server Error",
                                   "Failed to build request");
     }
-    
+
     /* Send request */
     sent = connection_send(conn, request, strlen(request));
     free(request);
-    
+
     if (sent < 0) {
         error_resp = NetworkResponseMake(500, "Internal Server Error",
                                          connection_error(conn));
         connection_free(conn);
         return error_resp;
     }
-    
+
     /* Read response */
-    
+
     while (total_read < sizeof(buffer) - 1) {
-        bytes_read = connection_recv(conn, buffer + total_read, 
+        bytes_read = connection_recv(conn, buffer + total_read,
                                      sizeof(buffer) - total_read - 1);
         if (bytes_read <= 0) break;
         total_read += bytes_read;
     }
     buffer[total_read] = '\0';
-    
+
     connection_free(conn);
-    
+
     /* Create response from raw data */
     return NetworkResponseMake(200, "OK", buffer);
 }
@@ -456,15 +457,15 @@ static TF_Nullary(networkrequest_free, NetworkRequest, NetworkRequestPrivate)
 
 NetworkRequest* NetworkRequestMake(const char* url, HttpMethod method) {
     TA_Allocate(NetworkRequest, NetworkRequestPrivate);
-    
+
     if (!private) return NULL;
-    
+
     /* Initialize fields */
     private->method = method;
     private->timeout_seconds = 30;
     private->follow_redirects = true;
     private->max_redirects = 5;
-    
+
     /* Parse and set URL */
     if (url) {
         private->url = strdup(url);
@@ -474,35 +475,35 @@ NetworkRequest* NetworkRequestMake(const char* url, HttpMethod method) {
             return NULL;
         }
     }
-    
+
     /* Add default headers */
     add_or_update_header(private, "User-Agent", "TrampolineHTTP/2.0");
     add_or_update_header(private, "Accept", "*/*");
-    
+
     /* Create trampoline functions */
     public->url = trampoline_monitor(networkrequest_url, public, 0, &tracker);
     public->setUrl = trampoline_monitor(networkrequest_setUrl, public, 1, &tracker);
     public->method = trampoline_monitor(networkrequest_method, public, 0, &tracker);
     public->setMethod = trampoline_monitor(networkrequest_setMethod, public, 1, &tracker);
-    
+
     public->header = trampoline_monitor(networkrequest_header, public, 1, &tracker);
     public->setHeader = trampoline_monitor(networkrequest_setHeader, public, 2, &tracker);
     public->removeHeader = trampoline_monitor(networkrequest_removeHeader, public, 1, &tracker);
-    
+
     public->body = trampoline_monitor(networkrequest_body, public, 0, &tracker);
     public->setBody = trampoline_monitor(networkrequest_setBody, public, 1, &tracker);
     public->bodyLength = trampoline_monitor(networkrequest_bodyLength, public, 0, &tracker);
     public->setBodyString = trampoline_monitor(networkrequest_setBodyString, public, 1, &tracker);
     public->setBodyJson = trampoline_monitor(networkrequest_setBodyJson, public, 1, &tracker);
-    
+
     public->port = trampoline_monitor(networkrequest_port, public, 0, &tracker);
     public->setPort = trampoline_monitor(networkrequest_setPort, public, 1, &tracker);
     public->timeout = trampoline_monitor(networkrequest_timeout, public, 0, &tracker);
     public->setTimeout = trampoline_monitor(networkrequest_setTimeout, public, 1, &tracker);
-    
+
     public->send = trampoline_monitor(networkrequest_send, public, 0, &tracker);
     public->free = trampoline_monitor(networkrequest_free, public, 0, &tracker);
-    
+
     /* Validate all trampolines */
     if (!trampoline_validate(tracker)) {
         free(private->url);
@@ -514,7 +515,7 @@ NetworkRequest* NetworkRequestMake(const char* url, HttpMethod method) {
         free(private);
         return NULL;
     }
-    
+
     return public;
 }
 

@@ -7,7 +7,7 @@ CFLAGS = -Wall -Wextra -O2 -g -std=c99
 INCLUDES = -I../.. -I.
 
 # Source files
-TRAMPOLINE_SRCS = ../../trampoline.c ../../trampoline_helpers.c
+TRAMPOLINE_SRCS = ../../src/trampoline_arm64.c ../../src/trampoline_helpers.c
 EXAMPLE_SRCS = map_example.c
 
 # Output binaries
@@ -75,7 +75,7 @@ test-simple: $(SIMPLE_TARGET)
 test-debug: $(DEBUG_TARGET)
 	./$(DEBUG_TARGET)
 
-# Run minimal map example  
+# Run minimal map example
 test-minimal: $(MINIMAL_TARGET)
 	./$(MINIMAL_TARGET)
 

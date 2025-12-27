@@ -6,9 +6,10 @@
 #ifndef TRAMPOLINES_NETWORK_H
 #define TRAMPOLINES_NETWORK_H
 
-#include <trampoline.h>
-#include <trampolines/string.h>
-#include <trampolines/json.h>
+#include <trampoline/trampoline.h>
+#include <trampoline/macros.h>
+#include <trampoline/classes/string.h>
+#include <trampoline/classes/json.h>
 #include <stddef.h>
 
 /* ======================================================================== */
@@ -56,23 +57,23 @@ typedef struct NetworkResponse {
   TDGetter(isSuccess, int);
   TDGetter(isRedirect, int);
   TDGetter(isError, int);
-  
+
   /* Headers */
   TDUnary(const char*, header, const char*);
   TDGetter(headerCount, size_t);
-  
+
   /* Body */
   TDGetter(body, const char*);
   TDGetter(bodyLength, size_t);
   TDGetter(bodyAsString, String*);
   TDGetter(bodyAsJson, Json*);
-  
+
   /* Utilities */
   TDGetter(contentType, const char*);
   TDGetter(contentLength, size_t);
   TDUnary(int, hasHeader, const char*);
   TDGetter(isJson, int);
-  
+
   /* Memory management */
   TDNullary(free);
 } NetworkResponse;
@@ -87,28 +88,28 @@ typedef struct NetworkRequest {
   TDSetter(setUrl, const char*);
   TDGetter(method, HttpMethod);
   TDSetter(setMethod, HttpMethod);
-  
+
   /* Headers */
   TDUnary(const char*, header, const char*);
   TDDyadic(void, setHeader, const char*, const char*);
   TDUnary(void, removeHeader, const char*);
-  
+
   /* Body */
   TDGetter(body, const char*);
   TDSetter(setBody, const char*);
   TDGetter(bodyLength, size_t);
   TDUnary(void, setBodyString, String*);
   TDUnary(void, setBodyJson, Json*);
-  
+
   /* Connection settings */
   TDGetter(port, int);
   TDSetter(setPort, int);
   TDGetter(timeout, int);
   TDSetter(setTimeout, int);
-  
+
   /* Send the request */
   TDGetter(send, NetworkResponse*);
-  
+
   /* Memory management */
   TDNullary(free);
 } NetworkRequest;

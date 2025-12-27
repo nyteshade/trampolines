@@ -27,7 +27,17 @@ CLASSES_DIR = $(SRC_DIR)/classes
 LIB_DIR = ../lib
 INSTALL_PREFIX = /usr/local
 INSTALL_LIB_DIR = $(INSTALL_PREFIX)/lib
-INSTALL_INC_DIR = $(INSTALL_PREFIX)/include
+INSTALL_INC_DIR = $(INSTALL_PREFIX)/include/trampoline/classes
+
+# Dynamically find the Homebrew prefix
+BREW_PREFIX := $(shell brew --prefix)
+
+# Use that prefix to set your paths
+LDFLAGS += -L$(BREW_PREFIX)/lib -L$(BREW_PREFIX)/opt/openssl@3/lib
+RPATH_FLAGS = -Wl,-rpath,$(BREW_PREFIX)/lib -Wl,-rpath,$(BREW_PREFIX)/opt/openssl@3/lib
+
+# If libtrampoline is always in /usr/local/lib regardless of brew, add it explicitly
+RPATH_FLAGS += -Wl,-rpath,/usr/local/lib
 
 # Classes library files
 CLASSES_SRCS = $(CLASSES_DIR)/string.c \
@@ -37,13 +47,14 @@ CLASSES_SRCS = $(CLASSES_DIR)/string.c \
                $(CLASSES_DIR)/json.c
 
 CLASSES_OBJS = $(CLASSES_SRCS:.c=.o)
-CLASSES_LIB_STATIC = $(LIB_DIR)/libtrampolines.a
-CLASSES_LIB_SHARED = $(LIB_DIR)/libtrampolines.$(DYLIB_EXT)
+CLASSES_LIB_STATIC = $(LIB_DIR)/libtrampolineclasses.a
+CLASSES_LIB_SHARED = $(LIB_DIR)/libtrampolineclasses.$(DYLIB_EXT)
 
 # Headers to install
-CLASSES_HEADERS = $(INCLUDE_DIR)/trampolines/string.h \
-                  $(INCLUDE_DIR)/trampolines/network.h \
-                  $(INCLUDE_DIR)/trampolines/json.h
+CLASSES_HEADERS = $(INCLUDE_DIR)/trampoline/classes/string.h \
+                  $(INCLUDE_DIR)/trampoline/classes/network.h \
+                  $(INCLUDE_DIR)/trampoline/classes/json.h \
+                  $(INCLUDE_DIR)/trampoline/classes/all.h
 
 # Default target
 all: $(CLASSES_LIB_STATIC) $(CLASSES_LIB_SHARED)
@@ -55,64 +66,64 @@ $(LIB_DIR):
 # Build static library
 $(CLASSES_LIB_STATIC): $(CLASSES_OBJS) | $(LIB_DIR)
 	$(AR) rcs $@ $^
-	@echo "Built static classes library: $@"
+	@echo "Built static classes library: \x1b[1m$@\x1b[22m"
 
 # Build shared library
 $(CLASSES_LIB_SHARED): $(CLASSES_OBJS) | $(LIB_DIR)
 ifeq ($(UNAME_S),Darwin)
-	$(CC) $(LDFLAGS) -install_name @rpath/libtrampolines.$(DYLIB_EXT) \
-		-L$(LIB_DIR) -ltrampoline $(SSL_LDFLAGS) -o $@ $(CLASSES_OBJS)
+	$(CC) $(LDFLAGS) $(RPATH_FLAGS) -install_name @rpath/libtrampolineclasses.$(DYLIB_EXT) \
+		-L$(LIB_DIR) -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto -ltrampoline $(SSL_LDFLAGS) -o $@ $(CLASSES_OBJS)
 else
-	$(CC) $(LDFLAGS) -L$(LIB_DIR) -ltrampoline $(SSL_LDFLAGS) -o $@ $(CLASSES_OBJS)
+	$(CC) $(LDFLAGS) -L$(LIB_DIR) -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto -ltrampoline $(SSL_LDFLAGS) -o $@ $(CLASSES_OBJS)
 endif
 	@echo "Built shared classes library: $@"
-	@echo "Note: Link with -ltrampoline -ltrampolines"
+	@echo "Note: Link with \x1b[1m-ltrampoline -ltrampolineclasses\x1b[22m"
 
 # Pattern rules for object files
 $(CLASSES_DIR)/%.o: $(CLASSES_DIR)/%.c
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
 # Specific rules with dependencies
-$(CLASSES_DIR)/string.o: $(CLASSES_DIR)/string.c $(INCLUDE_DIR)/trampolines/string.h
+$(CLASSES_DIR)/string.o: $(CLASSES_DIR)/string.c $(INCLUDE_DIR)/trampoline/classes/string.h
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
 $(CLASSES_DIR)/network_common.o: $(CLASSES_DIR)/network_common.c $(CLASSES_DIR)/network_common.h
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -I/opt/homebrew/opt/openssl@3/include -c $< -o $@
 
-$(CLASSES_DIR)/network_request.o: $(CLASSES_DIR)/network_request.c $(INCLUDE_DIR)/trampolines/network.h $(CLASSES_DIR)/network_common.h
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+$(CLASSES_DIR)/network_request.o: $(CLASSES_DIR)/network_request.c $(INCLUDE_DIR)/trampoline/classes/network.h $(CLASSES_DIR)/network_common.h
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -I/opt/homebrew/opt/openssl@3/include -c $< -o $@
 
-$(CLASSES_DIR)/network_response.o: $(CLASSES_DIR)/network_response.c $(INCLUDE_DIR)/trampolines/network.h
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+$(CLASSES_DIR)/network_response.o: $(CLASSES_DIR)/network_response.c $(INCLUDE_DIR)/trampoline/classes/network.h
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -I/opt/homebrew/opt/openssl@3/include -c $< -o $@
 
-$(CLASSES_DIR)/json.o: $(CLASSES_DIR)/json.c $(INCLUDE_DIR)/trampolines/json.h $(INCLUDE_DIR)/trampolines/string.h
+$(CLASSES_DIR)/json.o: $(CLASSES_DIR)/json.c $(INCLUDE_DIR)/trampoline/classes/json.h $(INCLUDE_DIR)/trampoline/classes/string.h
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
 # Installation
 install: all
 	@echo "Installing classes library..."
-	install -d $(INSTALL_INC_DIR)/trampolines
+	install -d $(INSTALL_INC_DIR)
 	for header in $(CLASSES_HEADERS); do \
 		if [ -f $$header ]; then \
-			install -m 644 $$header $(INSTALL_INC_DIR)/trampolines/; \
+			install -m 644 $$header $(INSTALL_INC_DIR)/; \
 		fi \
 	done
 	install -m 644 $(CLASSES_LIB_STATIC) $(INSTALL_LIB_DIR)/
 	install -m 755 $(CLASSES_LIB_SHARED) $(INSTALL_LIB_DIR)/
 ifeq ($(UNAME_S),Darwin)
 	@echo "Updating dylib install names..."
-	install_name_tool -id $(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT) \
-		$(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT)
+	install_name_tool -id $(INSTALL_LIB_DIR)/libtrampolineclasses.$(DYLIB_EXT) \
+		$(INSTALL_LIB_DIR)/libtrampolineclasses.$(DYLIB_EXT)
 endif
 	@echo "Classes library installed to $(INSTALL_LIB_DIR), includes to $(INSTALL_INC_DIR)"
 
 # Uninstall
 uninstall:
 	@echo "Uninstalling classes library..."
-	rm -f $(INSTALL_INC_DIR)/trampolines/*.h
-	rm -f $(INSTALL_LIB_DIR)/libtrampolines.a
-	rm -f $(INSTALL_LIB_DIR)/libtrampolines.$(DYLIB_EXT)
-	rmdir $(INSTALL_INC_DIR)/trampolines 2>/dev/null || true
+	rm -f $(INSTALL_INC_DIR)/*.h
+	rm -f $(INSTALL_LIB_DIR)/libtrampolineclasses.a
+	rm -f $(INSTALL_LIB_DIR)/libtrampolineclasses.$(DYLIB_EXT)
+	rmdir $(INSTALL_INC_DIR) 2>/dev/null || true
 
 # Clean
 clean:
