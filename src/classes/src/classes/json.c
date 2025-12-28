@@ -881,35 +881,31 @@ static TF_1ArgFunc(Json*, json_arrayGet, Json, JsonPrivate, size_t, index)
 }
 
 static TFVoidFunc(json_arrayAddNull, Json) {
-  Json *nullValue = JsonMakeNull();
   if (self->type() != JSON_ARRAY)
     return;
 
-  self->arrayAdd(nullValue);
+  self->arrayAdd(JsonMakeNull());
 }
 
 static TF1ArgFunc(void, json_arrayAddBool, Json, bool, value) {
-  Json *boolValue = JsonMakeBool(value);
   if (self->type() != JSON_ARRAY)
     return;
 
-  self->arrayAdd(boolValue);
+  self->arrayAdd(JsonMakeBool(value));
 }
 
 static TF1ArgFunc(void, json_arrayAddNumber, Json, double, value) {
-  Json *numberValue = JsonMakeNumber(value);
   if (self->type() != JSON_ARRAY)
     return;
 
-  self->arrayAdd(numberValue);
+  self->arrayAdd(JsonMakeNumber(value));
 }
 
 static TF1ArgFunc(void, json_arrayAddString, Json, const char*, value) {
-  Json *stringValue = JsonMakeString(value);
   if (self->type() != JSON_ARRAY)
     return;
 
-  self->arrayAdd(stringValue);
+  self->arrayAdd(JsonMakeString(value));
 }
 
 static TF1ArgFunc(void, json_arrayAddArray, Json, JsonArray*, value) {
@@ -1057,6 +1053,16 @@ static TF_2ArgFunc(void, json_objectSet, Json, JsonPrivate, const char*, key, Js
   private->value->size++;
 }
 
+static TF_Getter(json_size, Json, JsonPrivate, size_t)
+  JsonType type = private->value->type;
+
+  if (private->value && (type == JSON_ARRAY || type == JSON_OBJECT)) {
+    return private->value->size;
+  }
+
+  return 0;
+}
+
 static TF_Getter(json_stringify, Json, JsonPrivate, char*)
   return json_value_stringify(private->value, 0, 0);
 }
@@ -1103,7 +1109,6 @@ static Json* json_make_with_value(JsonValue* value) {
     return NULL;
 
   /* Allocate structure */
-  private = calloc(1, sizeof(JsonPrivate));
   if (!private) {
     json_value_free(value);
     return NULL;
@@ -1147,6 +1152,9 @@ static Json* json_make_with_value(JsonValue* value) {
   TAFunction(objectHas, json_objectHas, 1);
   TAFunction(objectGet, json_objectGet, 1);
   TAFunction(objectSet, json_objectSet, 2);
+
+  /* Normalization */
+  TAFunction(size, json_size, 0);
 
   /* Serialization */
   TAFunction(stringify, json_stringify, 0);

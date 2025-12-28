@@ -148,6 +148,11 @@ amiga:
 	@echo "sc idir include src/classes/string.c lib lib:trampoline.lib"
 	@echo "sc idir include src/classes/json.c lib lib:trampoline.lib"
 	@echo "oml ../../releases/amiga/lib/sasc/trampolineclasses.lib r src/classes/string.o src/classes/json.o"
+	@echo "cp ../../releases/amiga/lib/sasc/*.lib $$SC/lib"
+	@echo "cp include/trampoline/classes/string.h $$SC/include/trampoline/classes"
+	@echo "cp include/trampoline/classes/json.h $$SC/include/trampoline/classes"
+	@echo "rm src/classes/string.o"
+	@echo "rm src/classes/json.o"
 
 # Help
 help:

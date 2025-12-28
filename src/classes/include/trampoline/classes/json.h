@@ -5,6 +5,7 @@
 #ifndef TRAMPOLINE_JSON_H
 #define TRAMPOLINE_JSON_H
 
+#include <trampoline/macros.h>
 #include <stddef.h>
 
 /* C89-compatible boolean type */
@@ -13,7 +14,7 @@
   #ifndef __cplusplus
     #ifdef __STDC_VERSION__
       #if __STDC_VERSION__ >= 199901L
-        #include <stdbool.h>
+        typedef enum { false = 0, true } bool;
       #else
         /* C89 mode */
         typedef int bool;
@@ -54,28 +55,24 @@ typedef enum {
 
 struct Json {
     /* Type inspection */
-    JsonType (*type)(void);
-    bool (*isNull)(void);
-    bool (*isBool)(void);
-    bool (*isNumber)(void);
-    bool (*isString)(void);
-    bool (*isArray)(void);
-    bool (*isObject)(void);
+    TDGetter(type, JsonType);
+    TDGetter(isNull, bool);
+    TDGetter(isBool, bool);
+    TDGetter(isNumber, bool);
+    TDGetter(isString, bool);
+    TDGetter(isArray, bool);
+    TDGetter(isObject, bool);
 
-    /* Value getters */
-    bool (*getBool)(void);
-    double (*getNumber)(void);
-    const char* (*getString)(void);
-    JsonArray* (*getArray)(void);
-    JsonObject* (*getObject)(void);
+    /* Value properties */
+    TDProperty(getBool, setBool, bool);
+    TDProperty(getNumber, setNumber, double);
+    TDProperty(getString, setString, const char*);
 
-    /* Value setters */
-    void (*setNull)(void);
-    void (*setBool)(bool value);
-    void (*setNumber)(double value);
-    void (*setString)(const char* value);
-    void (*setArray)(void);
-    void (*setObject)(void);
+    TDGetter(getArray, JsonArray*);
+    TDGetter(getObject, JsonObject*);
+    TDSetter(setNull, void);
+    TDSetter(setArray, void);
+    TDSetter(setObject, void);
 
     /* Array operations (when type is array) */
     size_t (*arraySize)(void);
@@ -102,6 +99,9 @@ struct Json {
     void (*objectRemove)(const char* key);
     void (*objectClear)(void);
     const char** (*objectKeys)(size_t* count);
+
+    /* Normalized properties */
+    size_t (*size)(void);
 
     /* Serialization */
     char* (*stringify)(void);
