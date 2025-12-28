@@ -61,14 +61,14 @@ struct Json {
     bool (*isString)(void);
     bool (*isArray)(void);
     bool (*isObject)(void);
-    
+
     /* Value getters */
     bool (*getBool)(void);
     double (*getNumber)(void);
     const char* (*getString)(void);
     JsonArray* (*getArray)(void);
     JsonObject* (*getObject)(void);
-    
+
     /* Value setters */
     void (*setNull)(void);
     void (*setBool)(bool value);
@@ -76,7 +76,7 @@ struct Json {
     void (*setString)(const char* value);
     void (*setArray)(void);
     void (*setObject)(void);
-    
+
     /* Array operations (when type is array) */
     size_t (*arraySize)(void);
     Json* (*arrayGet)(size_t index);
@@ -84,7 +84,16 @@ struct Json {
     void (*arrayInsert)(size_t index, Json* value);
     void (*arrayRemove)(size_t index);
     void (*arrayClear)(void);
-    
+
+    /* Array syntax sugar */
+    void (*addNull)(void);
+    void (*addBool)(bool value);
+    void (*addNumber)(double value);
+    void (*addString)(const char* value);
+    void (*addArray)(JsonArray* value);
+    void (*addObject)(JsonObject* value);
+    void (*addJson)(Json* value);
+
     /* Object operations (when type is object) */
     size_t (*objectSize)(void);
     bool (*objectHas)(const char* key);
@@ -93,11 +102,11 @@ struct Json {
     void (*objectRemove)(const char* key);
     void (*objectClear)(void);
     const char** (*objectKeys)(size_t* count);
-    
+
     /* Serialization */
     char* (*stringify)(void);
     char* (*prettyPrint)(int indent_size);
-    
+
     /* Utility */
     Json* (*clone)(void);
     bool (*equals)(Json* other);
@@ -116,7 +125,7 @@ struct JsonArray {
     void (*insert)(size_t index, Json* value);
     void (*remove)(size_t index);
     void (*clear)(void);
-    
+
     /* Convenience methods */
     void (*addNull)(void);
     void (*addBool)(bool value);
@@ -124,15 +133,15 @@ struct JsonArray {
     void (*addString)(const char* value);
     Json* (*addArray)(void);
     Json* (*addObject)(void);
-    
+
     /* Type-specific getters */
     bool (*getBool)(size_t index);
     double (*getNumber)(size_t index);
     const char* (*getString)(size_t index);
-    
+
     /* Iteration */
     void (*forEach)(void (*callback)(size_t index, Json* value, void* context), void* context);
-    
+
     /* Conversion */
     Json* (*toJson)(void);
     void (*free)(void);
@@ -151,7 +160,7 @@ struct JsonObject {
     void (*remove)(const char* key);
     void (*clear)(void);
     const char** (*keys)(size_t* count);
-    
+
     /* Convenience methods */
     void (*setNull)(const char* key);
     void (*setBool)(const char* key, bool value);
@@ -159,15 +168,15 @@ struct JsonObject {
     void (*setString)(const char* key, const char* value);
     Json* (*setArray)(const char* key);
     Json* (*setObject)(const char* key);
-    
+
     /* Type-specific getters */
     bool (*getBool)(const char* key);
     double (*getNumber)(const char* key);
     const char* (*getString)(const char* key);
-    
+
     /* Iteration */
     void (*forEach)(void (*callback)(const char* key, Json* value, void* context), void* context);
-    
+
     /* Conversion */
     Json* (*toJson)(void);
     void (*free)(void);

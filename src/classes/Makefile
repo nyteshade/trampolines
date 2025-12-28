@@ -143,6 +143,12 @@ network-only: $(CLASSES_DIR)/network_common.o $(CLASSES_DIR)/network_request.o $
 ssl-info:
 	@$(MAKE) -f ../Makefile.config show
 
+amiga:
+	@echo "Copy and paste the following into your SAS/C enabled shell.\n"
+	@echo "sc idir include src/classes/string.c lib lib:trampoline.lib"
+	@echo "sc idir include src/classes/json.c lib lib:trampoline.lib"
+	@echo "oml ../../releases/amiga/lib/sasc/trampolineclasses.lib r src/classes/string.o src/classes/json.o"
+
 # Help
 help:
 	@echo "Trampoline Classes Library Makefile"
@@ -158,6 +164,7 @@ help:
 	@echo "  make uninstall    - Uninstall classes library"
 	@echo ""
 	@echo "Other:"
+	@echo "  make amiga        - Builds json and string, makes .lib"
 	@echo "  make clean        - Remove build artifacts"
 	@echo "  make ssl-info     - Show SSL configuration"
 	@echo "  make help         - Show this help"

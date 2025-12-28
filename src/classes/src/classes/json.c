@@ -795,12 +795,12 @@ static TF_Getter(json_getObject, Json, JsonPrivate, JsonObject*)
   return NULL;
 }
 
-static TF_Nullary(json_setNull, Json, JsonPrivate)
+static TF_VoidFunc(json_setNull, Json, JsonPrivate)
   json_value_free(private->value);
   private->value = json_value_create(JSON_NULL);
 }
 
-static TF_Unary(void, json_setBool, Json, JsonPrivate, bool, value)
+static TF_1ArgFunc(void, json_setBool, Json, JsonPrivate, bool, value)
   json_value_free(private->value);
   private->value = json_value_create(JSON_BOOL);
   if (private->value) {
@@ -808,7 +808,7 @@ static TF_Unary(void, json_setBool, Json, JsonPrivate, bool, value)
   }
 }
 
-static TF_Unary(void, json_setNumber, Json, JsonPrivate, double, value)
+static TF_1ArgFunc(void, json_setNumber, Json, JsonPrivate, double, value)
   json_value_free(private->value);
   private->value = json_value_create(JSON_NUMBER);
   if (private->value) {
@@ -816,7 +816,7 @@ static TF_Unary(void, json_setNumber, Json, JsonPrivate, double, value)
   }
 }
 
-static TF_Unary(void, json_setString, Json, JsonPrivate, const char*, value)
+static TF_1ArgFunc(void, json_setString, Json, JsonPrivate, const char*, value)
   json_value_free(private->value);
   if (value) {
     private->value = json_value_create(JSON_STRING);
@@ -832,12 +832,12 @@ static TF_Unary(void, json_setString, Json, JsonPrivate, const char*, value)
   }
 }
 
-static TF_Nullary(json_setArray, Json, JsonPrivate)
+static TF_VoidFunc(json_setArray, Json, JsonPrivate)
   json_value_free(private->value);
   private->value = json_value_create(JSON_ARRAY);
 }
 
-static TF_Nullary(json_setObject, Json, JsonPrivate)
+static TF_VoidFunc(json_setObject, Json, JsonPrivate)
   json_value_free(private->value);
   private->value = json_value_create(JSON_OBJECT);
 }
@@ -850,7 +850,7 @@ static TF_Getter(json_arraySize, Json, JsonPrivate, size_t)
   return 0;
 }
 
-static TF_Unary(Json*, json_arrayGet, Json, JsonPrivate, size_t, index)
+static TF_1ArgFunc(Json*, json_arrayGet, Json, JsonPrivate, size_t, index)
   Json* result;
   JsonPrivate* result_priv;
 
@@ -880,7 +880,53 @@ static TF_Unary(Json*, json_arrayGet, Json, JsonPrivate, size_t, index)
   return NULL;
 }
 
-static TF_Unary(void, json_arrayAdd, Json, JsonPrivate, Json*, value)
+static TFVoidFunc(json_arrayAddNull, Json) {
+  Json *nullValue = JsonMakeNull();
+  if (self->type() != JSON_ARRAY)
+    return;
+
+  self->arrayAdd(nullValue);
+}
+
+static TF1ArgFunc(void, json_arrayAddBool, Json, bool, value) {
+  Json *boolValue = JsonMakeBool(value);
+  if (self->type() != JSON_ARRAY)
+    return;
+
+  self->arrayAdd(boolValue);
+}
+
+static TF1ArgFunc(void, json_arrayAddNumber, Json, double, value) {
+  Json *numberValue = JsonMakeNumber(value);
+  if (self->type() != JSON_ARRAY)
+    return;
+
+  self->arrayAdd(numberValue);
+}
+
+static TF1ArgFunc(void, json_arrayAddString, Json, const char*, value) {
+  Json *stringValue = JsonMakeString(value);
+  if (self->type() != JSON_ARRAY)
+    return;
+
+  self->arrayAdd(stringValue);
+}
+
+static TF1ArgFunc(void, json_arrayAddArray, Json, JsonArray*, value) {
+	if (self->type() != JSON_ARRAY)
+	  return;
+
+  self->arrayAdd(value->toJson());
+}
+
+static TF1ArgFunc(void, json_arrayAddObject, Json, JsonObject*, value) {
+  if (self->type() != JSON_ARRAY)
+    return;
+
+  self->arrayAdd(value->toJson());
+}
+
+static TF_1ArgFunc(void, json_arrayAdd, Json, JsonPrivate, Json*, value)
   JsonValue** new_data;
   JsonPrivate* value_priv;
 
@@ -915,7 +961,7 @@ static TF_Getter(json_objectSize, Json, JsonPrivate, size_t)
   return 0;
 }
 
-static TF_Unary(bool, json_objectHas, Json, JsonPrivate, const char*, key)
+static TF_1ArgFunc(bool, json_objectHas, Json, JsonPrivate, const char*, key)
   JsonPair* pair;
 
   if (!private->value || private->value->type != JSON_OBJECT || !key) {
@@ -933,7 +979,7 @@ static TF_Unary(bool, json_objectHas, Json, JsonPrivate, const char*, key)
   return false;
 }
 
-static TF_Unary(Json*, json_objectGet, Json, JsonPrivate, const char*, key)
+static TF_1ArgFunc(Json*, json_objectGet, Json, JsonPrivate, const char*, key)
   JsonPair* pair;
   Json* result;
   JsonPrivate* result_priv;
@@ -968,7 +1014,7 @@ static TF_Unary(Json*, json_objectGet, Json, JsonPrivate, const char*, key)
   return NULL;
 }
 
-static TF_Dyadic(void, json_objectSet, Json, JsonPrivate, const char*, key, Json*, value)
+static TF_2ArgFunc(void, json_objectSet, Json, JsonPrivate, const char*, key, Json*, value)
   JsonPair* pair;
   JsonPair* new_pair;
   JsonPrivate* value_priv;
@@ -1015,7 +1061,7 @@ static TF_Getter(json_stringify, Json, JsonPrivate, char*)
   return json_value_stringify(private->value, 0, 0);
 }
 
-static TF_Unary(char*, json_prettyPrint, Json, JsonPrivate, int, indent_size)
+static TF_1ArgFunc(char*, json_prettyPrint, Json, JsonPrivate, int, indent_size)
   return json_value_stringify(private->value, indent_size, 0);
 }
 
@@ -1029,7 +1075,7 @@ static TF_Getter(json_clone, Json, JsonPrivate, Json*)
   return NULL;
 }
 
-static TF_Unary(bool, json_equals, Json, JsonPrivate, Json*, other)
+static TF_1ArgFunc(bool, json_equals, Json, JsonPrivate, Json*, other)
   JsonPrivate* other_priv;
 
   if (!other) return false;
@@ -1038,7 +1084,7 @@ static TF_Unary(bool, json_equals, Json, JsonPrivate, Json*, other)
   return json_value_equals(private->value, other_priv->value);
 }
 
-static TF_Nullary(json_free, Json, JsonPrivate)
+static TF_VoidFunc(json_free, Json, JsonPrivate)
   if (private) {
     json_value_free(private->value);
     trampoline_tracker_free_by_context(self);
@@ -1087,6 +1133,14 @@ static Json* json_make_with_value(JsonValue* value) {
   TAFunction(arraySize, json_arraySize, 0);
   TAFunction(arrayGet, json_arrayGet, 1);
   TAFunction(arrayAdd, json_arrayAdd, 1);
+
+  TAFunction(addNull, json_arrayAddNull, 0);
+  TAFunction(addBool, json_arrayAddBool, 1);
+  TAFunction(addNumber, json_arrayAddNumber, 1);
+  TAFunction(addString, json_arrayAddString, 1);
+  TAFunction(addArray, json_arrayAddArray, 1);
+  TAFunction(addObject, json_arrayAddObject, 1);
+  TAFunction(addJson, json_arrayAdd, 1);
 
   /* Object operations */
   TAFunction(objectSize, json_objectSize, 0);
