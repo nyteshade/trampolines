@@ -344,6 +344,10 @@ extern "C" {
 
 #else
 
+/* Ignore the conversion of data/function pointer warnings for trampolines on Amiga */
+#pragma msg 147 ignore
+#pragma msg 104 ignore
+
 #define TAFunction(public_fn, impl_fn, ignored_argc) \
   public->public_fn = trampoline_monitor(impl_fn, public, &tracker)
 

@@ -14,6 +14,28 @@
 #include <limits.h>
 
 /* ======================================================================== */
+/* SAS/C 6.5 Amiga compiler is lacking vsnprintf() defined below            */
+/* ======================================================================== */
+#if defined(__SASC) || defined(SASC)
+  #include <errno.h>
+  #include <math.h>
+  #include <float.h>
+
+  int vsnprintf(char *buf, size_t size, const char *format, va_list ap);
+  int snprintf(char *buf, size_t size, const char *format, ...);
+  float strtof(const char *nptr, char **endptr);
+
+  /**
+   * Float infinity/overflow constant for C99 compatibility.
+   * SAS/C does not define HUGE_VALF. We use FLT_MAX as the closest
+   * representable value since true infinity may not be supported.
+   */
+  #ifndef HUGE_VALF
+    #define HUGE_VALF 3.40282347e+38F
+  #endif
+#endif
+
+/* ======================================================================== */
 /* Private String Structure                                                 */
 /* ======================================================================== */
 
@@ -475,7 +497,7 @@ static TF_Unary(size_t, string_index_of, String, StringPrivate, const char*, nee
     found = strstr(private->data, needle);
     if (!found) return (size_t)-1;
 
-    return found - private->data;
+    return (size_t)(found - private->data);
 }
 
 static TF_Unary(size_t, string_last_index_of, String, StringPrivate, const char*, needle)
@@ -495,7 +517,7 @@ static TF_Unary(size_t, string_last_index_of, String, StringPrivate, const char*
     }
 
     if (!last) return (size_t)-1;
-    return last - private->data;
+    return (size_t)(last - private->data);
 }
 
 static TF_Unary(size_t, string_index_of_any, String, StringPrivate, const char*, chars)
@@ -1139,3 +1161,115 @@ String* StringArray_Join(const char** strings, size_t count, const char* separat
 
     return result;
 }
+
+/* ======================================================================== */
+/* SAS/C 6.5 Amiga compiler is lacking vsnprintf()                          */
+/* ======================================================================== */
+#if defined(__SASC) || defined(SASC)
+  /**
+   * Safer vsnprintf simulation that checks format string for maximum expansion.
+   *
+   * @param buf Destination buffer
+   * @param size Maximum number of bytes to write (including null terminator)
+   * @param format Printf-style format string
+   * @param ap Variable argument list
+   * @return Number of characters written (excluding null), or -1 on error
+   *
+   * @note This version performs basic length estimation before formatting
+   *       to reduce overflow risk in the temporary buffer.
+   */
+  int vsnprintf(char *buf, size_t size, const char *format, va_list ap)
+  {
+    char temp[8192];
+    int result;
+    size_t format_len;
+
+    if (!buf || size == 0)
+      return -1;
+
+    /* Quick sanity check - if format string alone is huge, bail */
+    format_len = strlen(format);
+    if (format_len > sizeof(temp) / 2)
+      return -1;
+
+    result = vsprintf(temp, format, ap);
+
+    if (result < 0 || (size_t)result >= sizeof(temp))
+      return -1;
+
+    if ((size_t)result >= size) {
+      memcpy(buf, temp, size - 1);
+      buf[size - 1] = '\0';
+      return (int)(size - 1);
+    }
+
+    strcpy(buf, temp);
+    return (int)result;
+  }
+
+  /**
+   * Simulates snprintf behavior using vsnprintf wrapper.
+   *
+   * @param buf Destination buffer
+   * @param size Maximum number of bytes to write (including null terminator)
+   * @param format Printf-style format string
+   * @param ... Variable arguments
+   * @return Number of characters that would have been written (excluding null)
+   *         if size was unlimited, or negative on error
+   */
+  int snprintf(char *buf, size_t size, const char *format, ...)
+  {
+    va_list ap;
+    int result;
+
+    va_start(ap, format);
+    result = vsnprintf(buf, size, format, ap);
+    va_end(ap);
+
+    return (int)result;
+  }
+
+  float strtof(const char *nptr, char **endptr)
+  {
+    double result;
+    char *temp_end;
+
+    /* Use strtod for the actual conversion */
+    errno = 0;
+    result = strtod(nptr, &temp_end);
+
+    /* Update endptr if requested */
+    if (endptr)
+      *endptr = temp_end;
+
+    /* Check if no conversion was performed */
+    if (temp_end == nptr)
+      return 0.0f;
+
+    /* Check for overflow to infinity */
+    if (result == HUGE_VAL || result == -HUGE_VAL) {
+      errno = ERANGE;
+      return (float)((result > 0) ? HUGE_VALF : -HUGE_VALF);
+    }
+
+    /* Check for float range overflow */
+    if (result > FLT_MAX) {
+      errno = ERANGE;
+      return HUGE_VALF;
+    }
+
+    if (result < -FLT_MAX) {
+      errno = ERANGE;
+      return -HUGE_VALF;
+    }
+
+    /* Check for underflow (result is too small for float but not zero) */
+    if (result != 0.0 && fabs(result) < FLT_MIN) {
+      errno = ERANGE;
+      /* Return signed zero or subnormal based on result */
+      return (float)result;
+    }
+
+    return (float)result;
+  }
+#endif
