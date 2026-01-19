@@ -99,6 +99,7 @@ ifeq ($(UNAME_S),Darwin)
 	install_name_tool -id $(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT) \
 		$(INSTALL_LIB_DIR)/libtrampoline.$(DYLIB_EXT)
 endif
+	ldconfig
 	@echo "Core library installed to $(INSTALL_LIB_DIR), includes to $(INSTALL_INC_DIR)"
 
 # Uninstall
